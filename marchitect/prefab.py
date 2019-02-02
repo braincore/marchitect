@@ -141,3 +141,56 @@ class FolderExists(Prefab):
                 return None
         else:
             return None
+
+
+class LineInFile(Prefab):
+    def __init__(self, path: str, line: str):
+        self.path = path
+        assert '\n' not in line
+        assert '\r' not in line
+        self.line = line
+
+    def execute(self, whiteprint: 'Whiteprint', mode: str) -> None:
+        quoted_line = shlex.quote(self.line)
+        if mode == 'install':
+            res = whiteprint.exec(
+                'grep -q {} {}'.format(quoted_line, self.path), error_ok=True)
+            if res.exit_status == 0:
+                return None
+            elif res.exit_status == 1 or res.exit_status == 2:
+                # 1: Line not found in file
+                # 2: File does not exist
+                whiteprint.exec(
+                    'echo {} >> {}'.format(quoted_line, self.path))
+            else:
+                assert False, 'Unknown grep exit status: %d' % res.exit_status
+        elif mode == 'clean':
+            quoted_pattern = shlex.quote('/^{}$/d'.format(self.line))
+            whiteprint.exec(
+                'sed --in-place="" {} {}'.format(quoted_pattern, self.path))
+
+    def validate(self, whiteprint: 'Whiteprint', mode: str) -> Optional[str]:
+        quoted_line = shlex.quote(self.line)
+        if mode == 'install':
+            res = whiteprint.exec(
+                'grep -q {} {}'.format(quoted_line, self.path), error_ok=True)
+            if res.exit_status == 0:
+                return None
+            else:
+                return 'Line {!r}{} not found in {!r}'.format(
+                    quoted_line[:10], '' if len(quoted_line) < 10 else '...',
+                    self.path)
+        elif mode == 'clean':
+            res = whiteprint.exec(
+                'grep -q {} {}'.format(quoted_line, self.path), error_ok=True)
+            if res.exit_status == 1 or res.exit_status == 2:
+                return None
+            elif res.exit_status == 0:
+                return 'Found line {!r}{} in {!r}'.format(
+                    quoted_line[:10], '' if len(quoted_line) < 10 else '...',
+                    self.path)
+            else:
+                return 'Unknown exit status from grep: {}'.format(
+                    res.exit_status)
+        else:
+            return None

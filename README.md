@@ -245,8 +245,8 @@ assuming that you're in a cloud environment.
 
 Prefabs are built-in idempotent components you can add to your whiteprints.
 These make it easy to add common functionality with the execution and
-validation already defined. Currently, `Apt`, `Pip3`, and `FolderExists` are
-available.
+validation already defined. Currently, `Apt`, `Pip3`, `FolderExists`, and
+`LineInFile` are available.
 
 Rewriting the first example:
 

@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 from ssh2.session import Session  # pylint: disable=E0611
 
-from marchitect.prefab import Apt, FolderExists, Pip3
+from marchitect.prefab import Apt, FolderExists, LineInFile, Pip3
 from marchitect.site_plan import (
     Step,
     SitePlan,
@@ -595,6 +595,59 @@ class TestBasic(unittest.TestCase):
         sp.execute('clean')
         assert not os.path.exists(path1)
         assert not os.path.exists(path1)
+
+    def test_prefab_line_in_file(self):
+        path = temp_file_path()
+        contents = 'ab c\'"'
+        class WhiteprintPrefab(Whiteprint):
+            prefabs = [
+                LineInFile(path, contents),
+            ]
+
+            def _execute(self, mode: str):
+                pass
+            def _validate(self, mode: str):
+                return None
+
+        class SitePlanSimple(SitePlan):
+            plan = [
+                Step(WhiteprintPrefab),
+            ]
+
+        sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
+
+        # Test that we're clean to begin with
+        sp.validate('clean')
+
+        # Test write over non-existent file
+        sp.execute('install')
+        with open(path) as f:
+            assert f.read() == contents + '\n'
+        sp.validate('install')
+
+        # Test cleaning process
+        sp.execute('clean')
+        sp.validate('clean')
+        os.remove(path)
+
+        # Test with existing content
+        dummy_line = '\'test line"""'
+        with open(path, 'w') as f:
+            f.write(dummy_line)
+            f.write('\n')
+        sp.validate('clean')
+
+        # Test append to existing file
+        sp.execute('install')
+        with open(path) as f:
+            assert f.read() == dummy_line + '\n' + contents + '\n'
+
+        # Test proper removal of single line
+        sp.clean()
+        sp.validate('clean')
+        with open(path) as f:
+            assert f.read() == dummy_line + '\n'
+        os.remove(path)
 
 
 if __name__ == '__main__':
