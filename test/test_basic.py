@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 from ssh2.session import Session  # pylint: disable=E0611
 
-from marchitect.prefab import Apt, Pip3
+from marchitect.prefab import Apt, FolderExists, Pip3
 from marchitect.site_plan import (
     Step,
     SitePlan,
@@ -486,6 +486,71 @@ class TestBasic(unittest.TestCase):
             sp.target_host_cfg = {}
             assert sp.validate('install') == "Pip3 package 'marchitect' missing."
             mock_method.assert_called_once_with('pip3 show stone marchitect')
+
+    def test_prefab_folder_exists(self):
+        path = temp_file_path()
+        class WhiteprintPrefab(Whiteprint):
+            prefabs = [
+                FolderExists(path),
+            ]
+
+            def _execute(self, mode: str):
+                pass
+            def _validate(self, mode: str):
+                return None
+
+        class SitePlanSimple(SitePlan):
+            plan = [
+                Step(WhiteprintPrefab),
+            ]
+
+        sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
+        sp.execute('clean')
+        sp.validate('clean')
+
+        # Test folder creation
+        sp.execute('install')
+        assert os.path.exists(path)
+        sp.validate('install')
+
+        # Test mode check
+        WhiteprintPrefab.prefabs[0].mode = 0o557
+        res = sp.validate('install')
+        assert res == "expected '%s' to have mode 557, got 775." % path
+
+        # Test owner check
+        WhiteprintPrefab.prefabs[0].group = 'theempire'
+        res = sp.validate('install')
+        assert res.startswith("expected '%s' to have group 'theempire', got " % path)
+
+        # Test group check
+        WhiteprintPrefab.prefabs[0].owner = 'darthvader'
+        res = sp.validate('install')
+        assert res.startswith("expected '%s' to have owner 'darthvader', got " % path)
+
+        # Test clean
+        sp.execute('clean')
+        assert not os.path.exists(path)
+        open(path, 'w').close()
+        res = sp.validate('install')
+        assert res == "'%s' is not a directory." % path
+        sp.execute('clean')
+        assert not os.path.exists(path)
+
+        # Test mode set on create
+        WhiteprintPrefab.prefabs[0].group = None
+        WhiteprintPrefab.prefabs[0].owner = None
+        WhiteprintPrefab.prefabs[0].mode = 0o557
+        sp.execute('install')
+        sp.validate('install')
+
+        # Test remove_on_clean flag
+        WhiteprintPrefab.prefabs[0].remove_on_clean = False
+        sp.execute('clean')
+        assert os.path.exists(path)
+        WhiteprintPrefab.prefabs[0].remove_on_clean = True
+        sp.execute('clean')
+        assert not os.path.exists(path)
 
 
 if __name__ == '__main__':

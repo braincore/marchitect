@@ -1,3 +1,4 @@
+import shlex
 from typing import (
     TYPE_CHECKING,
     List,
@@ -74,5 +75,69 @@ class Pip3(Prefab):
                 if package not in installed_packages:
                     return 'Pip3 package %r missing.' % package
             return None
+        else:
+            return None
+
+
+class FolderExists(Prefab):
+    def __init__(self, path: str, owner: Optional[str] = None,
+                 group: Optional[str] = None, mode: Optional[int] = None,
+                 remove_on_clean: bool = True):
+        self.path = path
+        self.owner = owner
+        self.group = group
+        self.mode = mode
+        self.remove_on_clean = remove_on_clean
+
+    def execute(self, whiteprint: 'Whiteprint', mode: str) -> None:
+        quoted_path = shlex.quote(self.path)
+        if mode == 'install':
+            cmd = 'mkdir -p '
+            if self.mode is not None:
+                cmd += ' -m {:o} '.format(self.mode)
+            cmd += self.path
+            whiteprint.exec(cmd)
+            if self.owner is not None:
+                whiteprint.exec('chown {} {}'.format(self.owner, quoted_path))
+            if self.group is not None:
+                whiteprint.exec('chgrp {} {}'.format(self.group, quoted_path))
+            if self.mode is not None:
+                whiteprint.exec('chmod {:o} {}'.format(self.mode, quoted_path))
+        elif mode == 'clean':
+            if self.remove_on_clean:
+                whiteprint.exec('rm -rf {}'.format(quoted_path))
+
+    def validate(self, whiteprint: 'Whiteprint', mode: str) -> Optional[str]:
+        quoted_path = shlex.quote(self.path)
+        if mode == 'install':
+            res = whiteprint.exec(
+                'stat -c "%F %U %G %a" {!r}'.format(quoted_path), error_ok=True)
+            if res.exit_status == 1:
+                return '%r does not exist.' % quoted_paths
+            # Use rsplit because %F can return "directory" or a multi-word like
+            # "regular empty file"
+            file_type, owner, group, file_mode = res.stdout.decode('utf-8')\
+                .strip().rsplit(maxsplit=3)
+            file_mode = int(file_mode, base=8)
+            if file_type != 'directory':
+                return '%r is not a directory.' % quoted_path
+            elif self.owner is not None and owner != self.owner:
+                return 'expected %r to have owner %r, got %r' % (
+                    quoted_path, self.owner, owner)
+            elif self.group is not None and group != self.group:
+                return 'expected %r to have group %r, got %r' % (
+                    quoted_path, self.group, group)
+            elif self.mode is not None and file_mode != self.mode:
+                return 'expected {!r} to have mode {:o}, got {:o}.'.format(
+                    quoted_path, self.mode, file_mode)
+            else:
+                return None
+        elif mode == 'clean':
+            res = whiteprint.exec(
+                'stat {!r}'.format(quoted_path), error_ok=True)
+            if res.exit_status != 1:
+                return 'expected %r to not exist.' % quoted_path
+            else:
+                return None
         else:
             return None
