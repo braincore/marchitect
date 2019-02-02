@@ -8,6 +8,8 @@ import string
 import sys
 import tempfile
 from typing import (
+    Any,
+    Dict,
     Tuple,
     Type,
 )
@@ -129,13 +131,19 @@ class TestBasic(unittest.TestCase):
 
     def setUp(self):
         for path in self.glob_test_files():
-            os.remove(path)
+            if os.path.isdir(path):
+                os.rmdir(path)
+            else:
+                os.remove(path)
 
     def tearDown(self):
         leftovers = self.glob_test_files()
         if leftovers:
             for leftover in leftovers:
-                os.remove(leftover)
+                if os.path.isdir(leftover):
+                    os.rmdir(leftover)
+                else:
+                    os.remove(leftover)
             assert False, 'Bad clean up of temp files: %r' % leftovers
 
     def test_deep_dict_update(self):
@@ -531,6 +539,12 @@ class TestBasic(unittest.TestCase):
         # Test clean
         sp.execute('clean')
         assert not os.path.exists(path)
+
+        # Test missing folder
+        res = sp.validate('install')
+        assert res == "'{}' does not exist.".format(path)
+
+        # Test file in place of directory
         open(path, 'w').close()
         res = sp.validate('install')
         assert res == "'%s' is not a directory." % path
@@ -551,6 +565,36 @@ class TestBasic(unittest.TestCase):
         WhiteprintPrefab.prefabs[0].remove_on_clean = True
         sp.execute('clean')
         assert not os.path.exists(path)
+
+    def test_computed_prefabs(self):
+        path1 = temp_file_path()
+        path2 = temp_file_path()
+
+        class WhiteprintPrefab(Whiteprint):
+            prefabs = [
+                FolderExists(path1),
+            ]
+            @classmethod
+            def _compute_prefabs(cls, cfg: Dict[str, Any]):
+                return [FolderExists(cfg['path'])]
+            def _execute(self, mode: str):
+                pass
+            def _validate(self, mode: str):
+                return None
+
+        class SitePlanSimple(SitePlan):
+            plan = [
+                Step(WhiteprintPrefab),
+            ]
+
+        sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
+        sp.cfg[WhiteprintPrefab] = {'path': path2}
+        sp.execute('install')
+        assert os.path.exists(path1)
+        assert os.path.exists(path2)
+        sp.execute('clean')
+        assert not os.path.exists(path1)
+        assert not os.path.exists(path1)
 
 
 if __name__ == '__main__':

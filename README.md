@@ -244,12 +244,16 @@ assuming that you're in a cloud environment.
 ### Prefab
 
 Prefabs are built-in idempotent components you can add to your whiteprints.
-These make it easy to add common functionality such as installing software from
-`apt` or `pip3`. Rewriting the first example:
+These make it easy to add common functionality with the execution and
+validation already defined. Currently, `Apt`, `Pip3`, and `FolderExists` are
+available.
+
+Rewriting the first example:
 
 ```python
 from marchitect.prefab import Pip3
 from marchitect.whiteprint import Whiteprint
+
 class HttpieWhiteprint(Whiteprint):
 
     prefabs = [
@@ -264,6 +268,24 @@ class HttpieWhiteprint(Whiteprint):
 ```
 
 Prefabs are executed before your overloaded `_execute()` method.
+
+If a prefab depends on a config variable, define a `_compute_prefabs()` class
+method:
+
+```python
+from typing import Any, Dict, List
+from marchitect.prefab import FolderExists, Prefab
+from marchitect.whiteprint import Whiteprint
+
+class ExampleWhiteprint(Whiteprint):
+
+    @classmethod
+    def _compute_prefabs(cls, cfg: Dict[str, Any]) -> List[Prefab]:
+        return [FolderExists(cfg['temp_folder'])]
+```
+
+The prefabs returned by`_compute_prefabs()` will be executed after those
+specified in the `prefabs` class variable.
 
 ### Site Plan
 

@@ -113,12 +113,12 @@ class FolderExists(Prefab):
             res = whiteprint.exec(
                 'stat -c "%F %U %G %a" {!r}'.format(quoted_path), error_ok=True)
             if res.exit_status == 1:
-                return '%r does not exist.' % quoted_paths
+                return '%r does not exist.' % quoted_path
             # Use rsplit because %F can return "directory" or a multi-word like
             # "regular empty file"
-            file_type, owner, group, file_mode = res.stdout.decode('utf-8')\
-                .strip().rsplit(maxsplit=3)
-            file_mode = int(file_mode, base=8)
+            file_type, owner, group, file_mode_raw = res.stdout\
+                .decode('utf-8').strip().rsplit(maxsplit=3)
+            file_mode = int(file_mode_raw, base=8)
             if file_type != 'directory':
                 return '%r is not a directory.' % quoted_path
             elif self.owner is not None and owner != self.owner:

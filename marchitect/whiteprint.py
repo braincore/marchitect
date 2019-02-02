@@ -187,6 +187,14 @@ class Whiteprint:
             if required_key not in self.cfg:
                 raise KeyError('Cfg {!r} must be set'.format(required_key))
 
+        computed_prefabs = self._compute_prefabs(self.cfg)
+        if computed_prefabs:
+            self.prefabs = self.prefabs[:] + computed_prefabs
+
+    @classmethod
+    def _compute_prefabs(cls, cfg: Dict[str, Any]) -> List[Prefab]:  # pylint: disable=W0613
+        return []
+
     def exec(self, cmd: str, stdin: Optional[bytes]=None,
              error_ok: bool=False) -> ExecOutput:
         """
