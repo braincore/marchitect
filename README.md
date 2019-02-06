@@ -315,3 +315,4 @@ mock the interfaces for `ssh2-python`.
   for easy debugging.
 * [] Add documentation for `validate()` method.
 * [] Verify speed wins by using `ssh2-python` instead of `paramiko`.
+* [] Document `SitePlan.one_off_exec()`.

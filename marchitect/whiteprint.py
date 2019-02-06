@@ -195,8 +195,8 @@ class Whiteprint:
     def _compute_prefabs(cls, cfg: Dict[str, Any]) -> List[Prefab]:  # pylint: disable=W0613
         return []
 
-    def exec(self, cmd: str, stdin: Optional[bytes]=None,
-             error_ok: bool=False) -> ExecOutput:
+    def exec(self, cmd: str, stdin: Optional[bytes] = None,
+             error_ok: bool = False) -> ExecOutput:
         """
         Executes cmd in a session channel.
 

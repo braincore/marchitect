@@ -17,6 +17,7 @@ from ssh2.session import Session  # type: ignore  # pylint: disable=E0611
 
 from .util import dict_deep_update
 from .whiteprint import (
+    ExecOutput,
     Whiteprint,
     WhiteprintError,
 )
@@ -157,6 +158,15 @@ class SitePlan:
             cpu_count=int(vals[5]),
         )
         return self.target_host_cfg
+
+    def one_off_exec(self, cmd: str, stdin: Optional[bytes] = None,
+                     error_ok: bool = False) -> ExecOutput:
+        session = self.connect_func()
+        wp = Whiteprint(session, None, None)
+        try:
+            return wp.exec(cmd, stdin=stdin, error_ok=error_ok)
+        finally:
+            session.disconnect()
 
     def execute(self, mode: str) -> None:
         session = self.connect_func()

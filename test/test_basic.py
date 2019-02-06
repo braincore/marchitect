@@ -649,6 +649,14 @@ class TestBasic(unittest.TestCase):
             assert f.read() == dummy_line + '\n'
         os.remove(path)
 
+    def test_one_off_exec(self):
+        class SitePlanSimple(SitePlan):
+            pass
+        sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
+        res = sp.one_off_exec('echo hello world')
+        assert res.exit_status == 0
+        assert res.stdout == b'hello world\n'
+
 
 if __name__ == '__main__':
     unittest.main()
