@@ -10,47 +10,56 @@ $ pip3 install marchitect
 
 ## Example
 
-Let's install `httpie` on your machine and do a couple more things.
+Let's write a couple of files to your machine assuming that it could easily be
+made to be a remote machine.
 
 ```python
-from marchitect.site_plan import Step, SitePlan
+from marchitect.site_plan import SitePlan, Step
 from marchitect.whiteprint import Whiteprint
 
-class HttpieWhiteprint(Whiteprint):
+class HelloWorldWhiteprint(Whiteprint):
 
-    name = 'httpie'  # See `file resolution`
+    name = 'hello_world'  
 
     def _execute(self, mode: str) -> None:
         if mode == 'install':
-            self.exec('pip3 install --user httpie')
-            self.exec('.local/bin/http https://www.nytimes.com > /tmp/nytimes')
+            # Write file by running remote shell commands.
+            self.exec('echo "hello, world." > /tmp/helloworld1')
+            # Write file by uploading
             self.scp_up_from_bytes(
-                b'hello, world', '/tmp/helloworld')
+                b'hello, world.', '/tmp/helloworld2')
 
 class MyMachine(SitePlan):
     plan = [
-        Step(HttpieWhiteprint)
+        Step(HelloWorldWhiteprint)
     ]
     
 if __name__ == '__main__':
+    # SSH into your own machine, prompting you for your password.
     import getpass
     import os
     user = os.getlogin()
     password = getpass.getpass('%s@localhost password: ' % user)
     sp = MyMachine.from_password('localhost', 22, user, password, {}, [])
+    # If you want to auth by private key, use the below:
+    # (Note: The password prompt will be for your private key, empty for none.)
     #sp = MyMachine.from_private_key(
     #    'localhost', 22, user, '/home/%s/.ssh/id_rsa' % user, password, {}, [])
-    sp.install()
+    sp.install()  # Sets the mode of _execute() to install.
 ```
 
 This example requires that you can SSH into your machine via password. To use
 your SSH key instead, uncomment the lines above. After execution, you should
-have `/tmp/nytimes` and `/tmp/helloworld` on your machine.
+have `/tmp/helloworld1` and `/tmp/helloworld2` on your machine.
 
 Hopefully it's clear that whiteprints let you run commands and upload files to a
 target machine. A whiteprint should contain all the operations for a common
-purpose. A siteplan contains all the whiteprints that should be run on a single
-machine class.
+purpose. A site plan contains all the whiteprints that should be run on a
+single machine class.
+
+Steps for deploying your code repository to a machine would make for a good
+whiteprint. A site plan for a machine that runs your web servers might use that
+whiteprint and others.
 
 ## Goals
 
@@ -59,11 +68,12 @@ machine class.
 * Mix of imperative and declarative styles.
 * Arbitrary execution modes (install, update, clean, start, stop, ...).
 * Interface for validating machine state.
-* Be lightweight because most complex configurations are happening in containers anyway.
+* Be lightweight because most complex configurations are happening in
+  containers anyway.
 
 ## Non-goals
 
-* Making whiteprints and siteplans share-able with other people and companies.
+* Making whiteprints and site plans share-able with other people and companies.
 * Non-Linux deployment targets.
 
 ## Concepts
@@ -73,30 +83,33 @@ machine class.
 To create a whiteprint, extend `Whiteprint` and define a `name` class variable
 and an `_execute()` method; optionally define a `validate()` method. `name`
 should be a reasonable name for the whiteprint. In the example above, the
-`HttpieWhiteprint` class's name is simply `httpie`. `name` is important for
-file resolution which is discussed below.
+`HelloWorldWhiteprint` class's name is simply `hello_world`. `name` is
+important for file resolution which is discussed below.
 
 `_execute()` is where all the magic happens. The method takes a string called
 `mode`. Out of convention, your whiteprints should handle the following modes:
-`install` (installing software), `update` (updating software), `clean`
-(removing software, if needed), `start` (starting services), and `stop`
-(stopping services).
 
-Despite this convention, `mode` can be anything as you'll be executing your
-site plan with a `mode` you specify, which will propagate to your whiteprints.
+* `install` (installing software)
+* `update` (updating software)
+* `clean` (removing software, if needed)
+* `start` (starting services)
+* `stop` (stopping services).
+
+Despite this convention, `mode` can be anything as you'll choosing the modes
+to execute your site plans with.
 
 Within `_execute()`, you're given all the freedom to shoot yourself in the
-foot. Use `self.exec()` to run any command.
+foot. Use `self.exec()` to run any command on the target machine.
 
 `exec()` returns an `ExecOutput` object with variables `exit_status` (int),
 `stdout` (bytes), and `stderr` (bytes). You can use these outputs to control
 flow. If the exit status is non-zero, a `RemoteExecError` is raised. To
 suppress the exception, set `error_ok=True`.
 
-`exec()` has access to `self.cfg` which are the config variables for the
+`_execute()` has access to `self.cfg` which are the config variables for the
 whiteprint. See the Templates & Config Vars section below.
 
-Use the variety of upload functions to copy files onto the host:
+Use the variety of functions to copy files to and from the host:
 
 * `scp_up()` - Upload a file from the local host to the target.
 * `sp_up_from_bytes()` - Create a file on the target host from the bytes arg.
@@ -157,6 +170,7 @@ class WhiteprintExample(Whiteprint):
 
     def _execute(self, mode: str) -> None:
         if mode == 'install':
+            # 'Bob' overrides 'Alice'
             self.scp_up_template_from_str(
                 'name = "{{ name }}"', '~/test.toml',
                 cfg_override={'name': 'Bob'})
@@ -177,7 +191,8 @@ if __name__ == '__main__':
     MyMachine.from_password(..., cfg_override={'name': 'Foo'})
 ```
 
-In the above, `Foo` takes precedence over `Eve`.
+In the above, `Foo` takes precedence over `Eve` which takes precedence over any
+values for `name` defined in the whiteprint.
 
 Finally, a `Step` can be given an alias as another identifier for specifying
 config vars. This is useful when a whiteprint is used multiple times in a site
@@ -224,50 +239,52 @@ has a name of `foobar`, and the file `c` is referenced as `a/b/c`. The resolver
 will look for the existence of `/srv/rsrcs/foobar/a/b/c`.
 
 If a file path is specified as absolute, say `/a/b/c`, no `rsrc_path` will be
-prefixed. However, this form is not encouraged as resources will live in
-different folders on different machines
+prefixed. However, this form is not encouraged for portability across machines
+as resources may live in different folders on different machines.
 
 #### Idempotence
 
-The most important consideration for your whiteprints is to strive for
-idempotence. In other words, assume your whiteprint in any mode (install,
-update, ...) can be interrupted at any point. Can your whiteprint be re-applied
-successfully without any problems?
+It's important to strive for the idempotence of your whiteprints. In other
+words, assume your whiteprint in any mode (install, update, ...) can be
+interrupted at any point. Can your whiteprint be re-applied successfully
+without any problems?
 
-If so, your whiteprint is idempotent and is
-therefore resilient to connection errors and software hiccups. Error handling
-will be as easy as retrying your whiteprint a bounded number of times. If not,
-you'll need to figure out an error handling strategy. In the extreme case, you
-can terminate servers that produce errors and start over with a fresh one,
-assuming that you're in a cloud environment.
+If so, your whiteprint is idempotent and is therefore resilient to connection
+errors and software hiccups. Error handling will be as easy as retrying your
+whiteprint a bounded number of times. If not, you'll need to figure out an
+error handling strategy. In the extreme case, you can terminate servers that
+produce errors and start over with a fresh one, assuming that you're in a cloud
+environment.
 
 ### Prefab
 
 Prefabs are built-in idempotent components you can add to your whiteprints.
-These make it easy to add common functionality with the execution and
-validation already defined. Currently, `Apt`, `Pip3`, `FolderExists`, and
-`LineInFile` are available.
+These make it easy to add common functionality with the `_execute()` and
+`_validate()` methods already defined. These are available out-of-thebox:
 
-Rewriting the first example:
+* `Apt`: Common Linux package manager.
+* `Pip3`: Python package manager.
+* `FolderExists`: Ensures a folder exists at the specified path.
+* `LineInFile`: Ensures the specified line exists in the specified file.
+
+An example:
 
 ```python
-from marchitect.prefab import Pip3
+from marchitect.prefab import Apt
 from marchitect.whiteprint import Whiteprint
 
-class HttpieWhiteprint(Whiteprint):
+class HelloWorld2Whiteprint(Whiteprint):
 
     prefabs = [
-        Pip3(['httpie']),
+        Apt(['curl']),
     ]
 
     def _execute(self, mode: str) -> None:
         if mode == 'install':
-            self.exec('.local/bin/http https://www.nytimes.com > /tmp/nytimes')
-            self.scp_up_from_bytes(
-                b'hello, world', '/tmp/helloworld')
+            self.exec('curl https://www.nytimes.com > /tmp/nytimes')
 ```
 
-Prefabs are executed before your overloaded `_execute()` method.
+Prefabs are executed before your `_execute()` method.
 
 If a prefab depends on a config variable, define a `_compute_prefabs()` class
 method:
