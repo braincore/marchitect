@@ -35,7 +35,9 @@ class Apt(Prefab):
 
     def execute(self, whiteprint: 'Whiteprint', mode: str) -> None:
         if mode == 'install':
-            whiteprint.exec('apt install -y %s' % ' '.join(self.packages))
+            whiteprint.exec(
+                'DEBIAN_FRONTEND=noninteractive '
+                'apt install -y %s' % ' '.join(self.packages))
 
     def validate(self, whiteprint: 'Whiteprint', mode: str) -> Optional[str]:
         if mode == 'install':
