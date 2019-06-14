@@ -1,4 +1,7 @@
-# Marchitect
+# Marchitect [![Latest Version]][PyPI]
+
+[Latest Version]: https://img.shields.io/pypi/v/marchitect.svg
+[PyPI]: https://pypi.org/project/marchitect/
 
 A tool for uploading files to and running commands on remote hosts.
 
@@ -314,8 +317,9 @@ appropriate whiteprints (postgres for database hosts, uwsgi for web hosts, ...).
 ## Testing
 
 Tests are run against real SSH connections, which unfortunately makes it
-difficult to run in a CI environment. You can specify SSH credentials either
-as a user/pass pair or user/private_key. For example:
+difficult to run in a CI environment. Travis CI is not enabled for this reason.
+When running tests through `py.test` or `tox`, you can specify SSH credentials
+either as a user/pass pair or user/private_key. For example:
 
 ```
 SSH_USER=username SSH_HOST=localhost SSH_PRIVATE_KEY=~/.ssh/id_rsa SSH_PRIVATE_KEY_PASSWORD=*** py.test
@@ -324,6 +328,8 @@ SSH_USER=username SSH_HOST=localhost SSH_PASSWORD=*** py.test -sx
 
 Will likely move to mocking SSH commands, but it will be painful to reliably
 mock the interfaces for `ssh2-python`.
+
+`mypy` and `lint` are also supported: `tox -e mypy,lint`
 
 ## TODO
 * [] Add "common" dependencies to minimize invocations of commands like
