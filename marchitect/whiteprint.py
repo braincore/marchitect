@@ -347,6 +347,8 @@ class Whiteprint:
                 mv_data = memoryview(data)
                 while True:
                     sent, expected = chan.write(bytes(mv_data))
+                    if sent == LIBSSH2_ERROR_EAGAIN:
+                        continue
                     if sent < expected:
                         mv_data = mv_data[sent:]
                     else:
