@@ -346,14 +346,16 @@ class Whiteprint:
             for data in f:
                 mv_data = memoryview(data)
                 while True:
-                    sent, expected = chan.write(bytes(mv_data))
-                    if sent == LIBSSH2_ERROR_EAGAIN:
-                        continue
-                    if sent < expected:
-                        mv_data = mv_data[sent:]
-                    else:
-                        assert sent == expected
+                    _, sent = chan.write(bytes(mv_data))
+                    mv_data = mv_data[sent:]
+                    if len(mv_data) == 0:
                         break
+        while chan.send_eof() == LIBSSH2_ERROR_EAGAIN:
+            continue
+        while chan.wait_eof() == LIBSSH2_ERROR_EAGAIN:
+            continue
+        while chan.wait_closed() == LIBSSH2_ERROR_EAGAIN:
+            continue
         chan.close()
 
     def scp_down(self, src_path: str, dest_path: str) -> None:
@@ -401,14 +403,16 @@ class Whiteprint:
         for chunk in chunks(data, 32_000):
             mv_chunk = memoryview(chunk)
             while True:
-                sent, expected = chan.write(bytes(mv_chunk))
-                if sent == LIBSSH2_ERROR_EAGAIN:
-                    continue
-                if sent < expected:
-                    mv_chunk = mv_chunk[sent:]
-                else:
-                    assert sent == expected
+                _, sent = chan.write(bytes(mv_chunk))
+                mv_chunk = mv_chunk[sent:]
+                if len(mv_chunk) == 0:
                     break
+        while chan.send_eof() == LIBSSH2_ERROR_EAGAIN:
+            continue
+        while chan.wait_eof() == LIBSSH2_ERROR_EAGAIN:
+            continue
+        while chan.wait_closed() == LIBSSH2_ERROR_EAGAIN:
+            continue
         chan.close()
 
     def scp_down_to_bytes(self, src_path: str) -> bytes:
