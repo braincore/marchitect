@@ -1,6 +1,7 @@
 import shlex
 from typing import (
     TYPE_CHECKING,
+    Dict,
     List,
     Optional,
 )
@@ -57,8 +58,15 @@ class Apt(Prefab):
 
 class Pip3(Prefab):
     def __init__(self, packages: List[str]):
-        # TODO: Support packages with version specification.
+        """
+        Args:
+            packages: Pin version using '==X.Y.Z' notation.
+        """
         self.packages = [pkg.lower() for pkg in packages]
+        self.package_map: Dict[str, Optional[str]] = {} 
+        for package in self.packages:
+            package_name, *version = package.split('==', 1)
+            self.package_map[package_name] = version[0] if version else None
 
     def execute(self, whiteprint: 'Whiteprint', mode: str) -> None:
         if mode == 'install':
@@ -67,15 +75,24 @@ class Pip3(Prefab):
     def validate(self, whiteprint: 'Whiteprint', mode: str) -> Optional[str]:
         if mode == 'install':
             res = whiteprint.exec(
-                'pip3 show %s' % ' '.join(self.packages))
-            installed_packages = set()
+                'pip3 show %s' % ' '.join(self.package_map.keys()))
+            installed_packages: Dict[str, str] = {} 
             for line in res.stdout.decode('utf-8').splitlines():
+                # Assumes consistency in presence and order: Version must
+                # always exist after Name.
                 if line.startswith('Name: '):
                     installed_package = line.split(maxsplit=1)[1]
-                    installed_packages.add(installed_package.lower())
-            for package in self.packages:
-                if package not in installed_packages:
-                    return 'Pip3 package %r missing.' % package
+                elif line.startswith('Version: '):
+                    installed_version = line.split(maxsplit=1)[1]
+                    installed_packages[installed_package] = installed_version
+            for req_package, req_version in self.package_map.items():
+                if req_package not in installed_packages:
+                    return 'Pip3 package %r missing.' % req_package
+                elif (req_version and
+                        req_version != installed_packages[req_package]):
+                    return 'Pip3 package %r wrong version: %r != %r' % (
+                        req_package, req_version,
+                        installed_packages[req_package])
             return None
         else:
             return None
