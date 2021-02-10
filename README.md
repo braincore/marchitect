@@ -94,11 +94,11 @@ important for file resolution which is discussed below.
 
 * `install` (installing software)
 * `update` (updating software)
-* `clean` (removing software, if needed)
+* `clean` (removing software, if needed, but generally impractical)
 * `start` (starting services)
 * `stop` (stopping services).
 
-Despite this convention, `mode` can be anything as you'll choosing the modes
+Despite this convention, `mode` can be anything as you'll be choosing the modes
 to execute your site plans with.
 
 Within `_execute()`, you're given all the freedom to shoot yourself in the
@@ -123,10 +123,10 @@ Use the variety of functions to copy files to and from the host:
 
 You can upload files that are [jinja2](http://jinja.pocoo.org) templates. The
 templates will be filled by the config variables passed to the whiteprint.
-Config variables can be set in numerous ways, which we'll now explore.
+Config variables can be set in a few ways, which we'll explore.
 
 Here's a sample `test.toml` file that uses the jinja2 notation to specify a
-name variable with a default of `John Doe`:
+`name` variable with a default of `John Doe`:
 
 ```toml
 name = "{{ name|default('John Doe') }}"
@@ -191,11 +191,13 @@ class MyMachine(SitePlan):
     ]
 
 if __name__ == '__main__':
-    MyMachine.from_password(..., cfg_override={'name': 'Foo'})
+    MyMachine.from_password(..., cfg={WhiteprintExample: {'name': 'Foo'}})
 ```
 
 In the above, `Foo` takes precedence over `Eve` which takes precedence over any
 values for `name` defined in the whiteprint.
+
+##### Config Override by Alias
 
 Finally, a `Step` can be given an alias as another identifier for specifying
 config vars. This is useful when a whiteprint is used multiple times in a site
@@ -211,13 +213,15 @@ class MyMachine(SitePlan):
     ]
 
 if __name__ == '__main__':
-    MyMachine.from_password(..., cfg_override={'ex1': 'Eve', 'ex2': 'Foo'})
+    MyMachine.from_password(..., cfg={'ex1': 'Eve', 'ex2': 'Foo'})
 ```
 
 In the above, the first `WhiteprintExample` uploads `Eve` and the second
 replaces it with `Foo`.
 
-There are also config variables that are auto-derived and always available.
+##### Auto-Derived Configs
+
+Auto-derived config variables are always available without specification.
 These are stored in `self.cfg['_target']`:
 
 * `user`: The login user for the SSH connection.
