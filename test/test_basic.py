@@ -712,7 +712,7 @@ class TestBasic(unittest.TestCase):
             def _validate(self, mode: str):
                 return None
 
-        class WhiteprintSimple(Whiteprint):
+        class WhiteprintOuter(Whiteprint):
             def _execute(self, mode):
                 self.use_execute(mode, WhiteprintPrefab, {'path': path2})
             def _validate(self, mode):
@@ -720,7 +720,7 @@ class TestBasic(unittest.TestCase):
 
         class SitePlanSimple(SitePlan):
             plan = [
-                Step(WhiteprintSimple),
+                Step(WhiteprintOuter),
             ]
 
         sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)

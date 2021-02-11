@@ -7,7 +7,7 @@ from typing import (
     Type,
 )
 
-import schema
+import schema  # type: ignore
 
 from .whiteprint import Whiteprint
 

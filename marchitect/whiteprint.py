@@ -159,6 +159,21 @@ class ValidationError(WhiteprintError):
         return self.msg
 
 
+from distutils.version import LooseVersion
+_target_host_cfg_schema = {
+    schema.Optional('_target'): {
+        'user': str,
+        'host': str,
+        'kernel': str,
+        'distro': str,
+        'distro_version': LooseVersion,
+        'hostname': str,
+        'fqdn': str,
+        'cpu_count': int,
+    }
+}
+
+
 class Whiteprint:
     """
     Subclass and implement the execute() method.
@@ -207,10 +222,9 @@ class Whiteprint:
                 raise KeyError('Cfg {!r} must be set'.format(required_key))
 
         if self.cfg_schema:
-            # FIXME: Do an assignment (so that Use() takes effect)
-            # Remove ignore_extra_keys...
-            schema.Schema(
-                self.cfg_schema, ignore_extra_keys=True).validate(self.cfg)
+            self.cfg = schema.Schema(
+                {**self.cfg_schema, **_target_host_cfg_schema})\
+                .validate(self.cfg)
 
         computed_prefabs = self._compute_prefabs(self.cfg)
         if computed_prefabs:
