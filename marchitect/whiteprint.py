@@ -144,6 +144,16 @@ class RemoteExecError(WhiteprintError):
         )
 
 
+class ValidationError(WhiteprintError):
+    """Raised when whiteprint validation fails."""
+    def __init__(self, msg: str):
+        super().__init__(msg)
+        self.msg = msg
+
+    def log_msg(self) -> str:
+        return self.msg
+
+
 class Whiteprint:
     """
     Subclass and implement the execute() method.

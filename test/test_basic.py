@@ -30,6 +30,7 @@ from marchitect.whiteprint import (
     RemoteExecError,
     RemoteFileNotFoundError,
     RemoteTargetDirError,
+    ValidationError,
     Whiteprint,
 )
 import schema
@@ -408,6 +409,39 @@ class TestBasic(unittest.TestCase):
             wp.scp_down_to_bytes(WhiteprintWriteTemp.temp_file_path)
 
         sp.clean()
+
+    def test_whiteprint_validation_error(self):
+        class WhiteprintInvalid(Whiteprint):
+            def _execute(self, mode: str):
+                pass
+
+            def _validate(self, mode: str):
+                return 'bad'
+
+        class SitePlanBad(SitePlan):
+            plan = [
+                Step(WhiteprintInvalid),
+            ]
+
+        sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanBad)
+        res = sp.validate('install')
+        assert res == 'bad'
+
+        class WhiteprintInvalid2(Whiteprint):
+            def _execute(self, mode: str):
+                pass
+
+            def _validate(self, mode: str):
+                raise ValidationError('err')
+
+        class SitePlanBad2(SitePlan):
+            plan = [
+                Step(WhiteprintInvalid2),
+            ]
+
+        sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanBad2)
+        res = sp.validate('install')
+        assert res == 'err'
 
     def test_prefab_apt(self):
         class WhiteprintPrefab(Whiteprint):

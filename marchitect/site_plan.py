@@ -18,6 +18,7 @@ from ssh2.session import Session  # type: ignore  # pylint: disable=E0611
 from .util import dict_deep_update
 from .whiteprint import (
     ExecOutput,
+    ValidationError,
     Whiteprint,
     WhiteprintError,
 )
@@ -209,6 +210,7 @@ class SitePlan:
     def validate(self, mode: str) -> Optional[str]:
         session = self.connect_func()
         target_host_cfg = self._get_target_host_cfg(session)
+        err_msg = None
         for step in self.plan:
             rsrc_path = self._resolve_whiteprint_rsrc_path(step.whiteprint_cls)
             site_cfg = copy.deepcopy(self.default_cfg)
@@ -220,11 +222,14 @@ class SitePlan:
             self.logger.info(
                 'Validating %s (%s)', step.whiteprint_cls.__name__, mode)
             whiteprint = step.whiteprint_cls(session, site_cfg, rsrc_path)
-            res = whiteprint.validate(mode)
-            if res is not None:
+            try:
+                err_msg = whiteprint.validate(mode)
+            except ValidationError as e:
+                err_msg = e.log_msg()
+            if err_msg is not None:
                 self.logger.error(
                     '%s failed validation (%s): %s', step.whiteprint_cls.__name__,
-                    mode, res)
+                    mode, err_msg)
                 break
         session.disconnect()
-        return res
+        return err_msg
