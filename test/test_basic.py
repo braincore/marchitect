@@ -354,7 +354,7 @@ class TestBasic(unittest.TestCase):
         wp.execute('--random--')
 
     def test_siteplan(self):
-        from distutils.version import LooseVersion  # pylint: disable=E0401,E0611
+        from distutils.version import LooseVersion
         class WhiteprintAssertTargetCfg(Whiteprint):
             def _execute(self, mode: str):
                 assert isinstance(self.cfg['_target'], dict)

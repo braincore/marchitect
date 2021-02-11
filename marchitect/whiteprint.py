@@ -320,7 +320,7 @@ class Whiteprint:
             # Unfortunately, very coarse error without any more info. It very
             # possibly occurs in other circumstances as well.
             assert e.args == ()
-            raise RemoteTargetDirError('%r is a bad path.' % dest_path, e)
+            raise RemoteTargetDirError('%r is a bad path.' % dest_path, e) from e
 
     def _scp_recv2_helper(self, src_path: str) -> Tuple[Channel, FileInfo]:
         try:
@@ -332,7 +332,7 @@ class Whiteprint:
             # Unfortunately, very coarse error without any more info. It very
             # possibly occurs in other circumstances as well.
             assert e.args == ()
-            raise RemoteFileNotFoundError('%r not found.' % src_path, e)
+            raise RemoteFileNotFoundError('%r not found.' % src_path, e) from e
 
     def scp_up(self, src_path: str, dest_path: str,
                mode: Optional[int] = None) -> None:

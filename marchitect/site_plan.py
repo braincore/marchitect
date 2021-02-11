@@ -1,5 +1,5 @@
 import copy
-from distutils.version import LooseVersion  # pylint: disable=E0401,E0611
+from distutils.version import LooseVersion
 import logging
 from pathlib import Path
 import socket
