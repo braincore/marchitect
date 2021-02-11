@@ -37,30 +37,29 @@ import schema
 
 
 def _mk_siteplan_from_env_var_ssh_creds(sp_cls: Type[SitePlan]) -> SitePlan:
-    user = os.getenv('SSH_USER')
-    host = os.getenv('SSH_HOST')
-    port = int(os.getenv('SSH_PORT', '22'))
-    password = os.getenv('SSH_PASSWORD')
-    private_key = os.getenv('SSH_PRIVATE_KEY')
-    private_key_password = os.getenv('SSH_PRIVATE_KEY_PASSWORD')
+    user = os.getenv("SSH_USER")
+    host = os.getenv("SSH_HOST")
+    port = int(os.getenv("SSH_PORT", "22"))
+    password = os.getenv("SSH_PASSWORD")
+    private_key = os.getenv("SSH_PRIVATE_KEY")
+    private_key_password = os.getenv("SSH_PRIVATE_KEY_PASSWORD")
 
     if user is None:
-        print('SSH_USER env var must be set.', file=sys.stderr)
+        print("SSH_USER env var must be set.", file=sys.stderr)
         sys.exit(1)
     if host is None:
-        print('SSH_HOST env var must be set.', file=sys.stderr)
+        print("SSH_HOST env var must be set.", file=sys.stderr)
         sys.exit(1)
     if password is None and private_key is None:
-        print(
-            'SSH_PASSWORD or SSH_PRIVATE_KEY env var must be set.',
-            file=sys.stderr)
+        print("SSH_PASSWORD or SSH_PRIVATE_KEY env var must be set.", file=sys.stderr)
         sys.exit(1)
 
     if password:
         return sp_cls.from_password(host, port, user, password, {}, [])
     else:
         return sp_cls.from_private_key(
-            host, port, user, private_key, private_key_password, {}, [])
+            host, port, user, private_key, private_key_password, {}, []
+        )
 
 
 def _mk_session_from_env_var_ssh_creds() -> Session:
@@ -73,63 +72,62 @@ def create_blank_whiteprint() -> Whiteprint:
 
 class WhiteprintSimple(Whiteprint):
     def _execute(self, mode: str):
-        if mode == 'install':
-            self.exec('ls /')
+        if mode == "install":
+            self.exec("ls /")
+
     def _validate(self, mode: str):
         return None
 
 
 class WhiteprintBadCfgSchema(Whiteprint):  # pylint: disable=W0223
-    cfg_schema = {'name': str}
+    cfg_schema = {"name": str}
 
 
 class WhiteprintWriteTemp(Whiteprint):
 
     default_cfg = {
-        'value': 'alice',
+        "value": "alice",
     }
 
-    temp_file_path = '/tmp/architect_test_wp_write_temp'
+    temp_file_path = "/tmp/architect_test_wp_write_temp"
 
     def _execute(self, mode: str):
-        if mode == 'install':
+        if mode == "install":
             self.scp_up_template_from_str(
-                '{{ value }}',
+                "{{ value }}",
                 self.temp_file_path,
             )
-        elif mode == 'clean':
-            self.exec('rm %s' % self.temp_file_path)
+        elif mode == "clean":
+            self.exec("rm %s" % self.temp_file_path)
+
     def _validate(self, mode: str):
         return None
 
 
 def temp_file_path() -> str:
     """Returns a possible temporary file path. Does not create the file."""
-    filename = 'architect_test_' + \
-               ''.join(random.choices(string.ascii_letters, k=8))
+    filename = "architect_test_" + "".join(random.choices(string.ascii_letters, k=8))
     return os.path.join(tempfile.gettempdir(), filename)
 
 
 def random_data(size: int = 1024) -> str:
     """Return string is made of printable characters."""
-    return ''.join(random.choices(string.printable, k=size))
+    return "".join(random.choices(string.printable, k=size))
 
 
 def mk_random_temp_file(size: int = 1024) -> Tuple[str, bytes]:
     """Returns (temp file path, temp file contents)."""
     path = temp_file_path()
-    data = random_data(size).encode('ascii')
-    with open(path, 'wb') as f:
+    data = random_data(size).encode("ascii")
+    with open(path, "wb") as f:
         f.write(data)
     return path, data
 
 
 class TestBasic(unittest.TestCase):
-
     @staticmethod
     def glob_test_files():
-        return glob.glob(
-            os.path.join(tempfile.gettempdir(), 'architect_test_*'))
+        return glob.glob(os.path.join(tempfile.gettempdir(), "architect_test_*"))
 
     def setUp(self):
         for path in self.glob_test_files():
@@ -146,17 +144,17 @@ class TestBasic(unittest.TestCase):
                     os.rmdir(leftover)
                 else:
                     os.remove(leftover)
-            assert False, 'Bad clean up of temp files: %r' % leftovers
+            assert False, "Bad clean up of temp files: %r" % leftovers
 
     def test_deep_dict_update(self):
-        a = {'a': 1, 'b': {'c': 2}, 'd': 3, 'z': {}}
-        b = {'a': 4, 'b': {'c': 5, 'e': 7}, 'z': 100}
+        a = {"a": 1, "b": {"c": 2}, "d": 3, "z": {}}
+        b = {"a": 4, "b": {"c": 5, "e": 7}, "z": 100}
         dict_deep_update(a, b)
-        assert a['a'] == 4
-        assert a['d'] == 3
-        assert a['b']['c'] == 5
-        assert a['b']['e'] == 7
-        assert a['z'] == 100
+        assert a["a"] == 4
+        assert a["d"] == 3
+        assert a["b"]["c"] == 5
+        assert a["b"]["e"] == 7
+        assert a["z"] == 100
 
     def test_whiteprint_bad_cfg_schema(self):
         session = _mk_session_from_env_var_ssh_creds()
@@ -167,53 +165,57 @@ class TestBasic(unittest.TestCase):
 
     def test_whiteprint_exec(self):
         wp = create_blank_whiteprint()
-        res = wp.exec('ls /')
+        res = wp.exec("ls /")
         assert len(res.stdout) > 0
-        assert res.stderr == b''
+        assert res.stderr == b""
         assert res.exit_status == 0
 
-        res = wp.exec('echo hello there')
-        assert res.stdout == b'hello there\n'
-        assert res.stderr == b''
+        res = wp.exec("echo hello there")
+        assert res.stdout == b"hello there\n"
+        assert res.stderr == b""
         assert res.exit_status == 0
 
-        res = wp.exec('echo hello there 1>&2', error_ok=True)
-        assert res.stdout == b''
-        assert res.stderr == b'hello there\n'
+        res = wp.exec("echo hello there 1>&2", error_ok=True)
+        assert res.stdout == b""
+        assert res.stderr == b"hello there\n"
         assert res.exit_status == 0
 
-        res = wp.exec('ls /does-not-exist', error_ok=True)
-        assert res.stdout == b''
-        assert res.stderr == \
-            b"ls: cannot access '/does-not-exist': No such file or directory\n"
+        res = wp.exec("ls /does-not-exist", error_ok=True)
+        assert res.stdout == b""
+        assert (
+            res.stderr
+            == b"ls: cannot access '/does-not-exist': No such file or directory\n"
+        )
         assert res.exit_status == 2
 
         # Test exception raises
         with self.assertRaises(RemoteExecError) as ctx:
-            wp.exec('ls /does-not-exist')
+            wp.exec("ls /does-not-exist")
         assert ctx.exception.exec_output.exit_status == 2
-        assert ctx.exception.exec_output.stdout == b''
-        assert ctx.exception.exec_output.stderr == \
-            b"ls: cannot access '/does-not-exist': No such file or directory\n"
+        assert ctx.exception.exec_output.stdout == b""
+        assert (
+            ctx.exception.exec_output.stderr
+            == b"ls: cannot access '/does-not-exist': No such file or directory\n"
+        )
 
     def test_whiteprint_exec_large_output(self):
         wp = create_blank_whiteprint()
 
-        data = random_data(size=1_000_000).encode('ascii')
+        data = random_data(size=1_000_000).encode("ascii")
         dest_temp_path = temp_file_path()
         wp.scp_up_from_bytes(data, dest_temp_path)
 
-        res = wp.exec('cat %s' % dest_temp_path)
+        res = wp.exec("cat %s" % dest_temp_path)
         assert res.stdout == data
-        assert res.stderr == b''
+        assert res.stderr == b""
         assert res.exit_status == 0
 
         os.remove(dest_temp_path)
 
     def test_whiteprint_stdin(self):
         wp = create_blank_whiteprint()
-        res = wp.exec('cat', stdin=b'test')
-        assert res.stdout == b'test'
+        res = wp.exec("cat", stdin=b"test")
+        assert res.stdout == b"test"
 
     def test_whiteprint_scp(self):
         wp = create_blank_whiteprint()
@@ -228,7 +230,7 @@ class TestBasic(unittest.TestCase):
         wp.scp_down(dest_temp_path, round_trip_path)
 
         # Make sure the file round tripped
-        with open(round_trip_path, 'rb') as f:
+        with open(round_trip_path, "rb") as f:
             d1 = f.read()
             assert d1 == data
 
@@ -240,7 +242,7 @@ class TestBasic(unittest.TestCase):
     def test_whiteprint_scp_bytes(self):
         wp = create_blank_whiteprint()
 
-        data = random_data().encode('ascii')
+        data = random_data().encode("ascii")
         dest_temp_path = temp_file_path()
         wp.scp_up_from_bytes(data, dest_temp_path)
 
@@ -251,7 +253,7 @@ class TestBasic(unittest.TestCase):
     def test_whiteprint_scp_overwrite(self):
         wp = create_blank_whiteprint()
 
-        data = random_data().encode('ascii')
+        data = random_data().encode("ascii")
         dest_temp_path = temp_file_path()
         wp.scp_up_from_bytes(data, dest_temp_path)
         wp.scp_up_from_bytes(data, dest_temp_path)
@@ -264,61 +266,60 @@ class TestBasic(unittest.TestCase):
         wp = create_blank_whiteprint()
 
         # Try uploading to a bad target folder
-        data = random_data().encode('ascii')
+        data = random_data().encode("ascii")
         with self.assertRaises(RemoteTargetDirError) as ctx:
-            wp.scp_up_from_bytes(data, '/does-not-exist/file-path')
-        assert ctx.exception.args[0] == \
-            "'/does-not-exist/file-path' is a bad path."
+            wp.scp_up_from_bytes(data, "/does-not-exist/file-path")
+        assert ctx.exception.args[0] == "'/does-not-exist/file-path' is a bad path."
 
         # Try uploading a file that doesn't exist locally
         with self.assertRaises(FileNotFoundError):
-            wp.scp_up('/does-not-exist-locally/file-path', '/not-relevant')
+            wp.scp_up("/does-not-exist-locally/file-path", "/not-relevant")
 
     def test_whiteprint_scp_down_error(self):
         wp = create_blank_whiteprint()
 
         # Try downloading a non-existent file
         with self.assertRaises(RemoteFileNotFoundError) as ctx:
-            wp.scp_down_to_bytes('/does-not-exist')
+            wp.scp_down_to_bytes("/does-not-exist")
         assert ctx.exception.args[0] == "'/does-not-exist' not found."
 
         with self.assertRaises(RemoteFileNotFoundError) as ctx:
-            wp.scp_down('/does-not-exist', '/tmp/will-not-be-created')
+            wp.scp_down("/does-not-exist", "/tmp/will-not-be-created")
         assert ctx.exception.args[0] == "'/does-not-exist' not found."
 
         # Try downloading to a bad local path
-        data = random_data().encode('ascii')
+        data = random_data().encode("ascii")
         dest_temp_path = temp_file_path()
         wp.scp_up_from_bytes(data, dest_temp_path)
 
         with self.assertRaises(FileNotFoundError):
-            wp.scp_down(dest_temp_path, '/does-not-exist/file-path')
+            wp.scp_down(dest_temp_path, "/does-not-exist/file-path")
         os.remove(dest_temp_path)
 
     def test_whiteprint_scp_template(self):
         wp = create_blank_whiteprint()
 
         src_temp_path = temp_file_path()
-        with open(src_temp_path, 'w') as f:
-            f.write('{{ name }}')
+        with open(src_temp_path, "w") as f:
+            f.write("{{ name }}")
 
-        wp.cfg['name'] = 'Alice'
+        wp.cfg["name"] = "Alice"
         dest_temp_path = temp_file_path()
         wp.scp_up_template(src_temp_path, dest_temp_path)
 
         dest_data = wp.scp_down_to_bytes(dest_temp_path)
-        assert dest_data == b'Alice'
+        assert dest_data == b"Alice"
 
         # Test cfg override
-        wp.scp_up_template(
-            src_temp_path, dest_temp_path, cfg_override=dict(name='Bob'))
+        wp.scp_up_template(src_temp_path, dest_temp_path, cfg_override=dict(name="Bob"))
         dest_data = wp.scp_down_to_bytes(dest_temp_path)
-        assert dest_data == b'Bob'
+        assert dest_data == b"Bob"
 
         wp.scp_up_template_from_str(
-            '{{ name }} {{ name }}', dest_temp_path, cfg_override=dict(name='Eve'))
+            "{{ name }} {{ name }}", dest_temp_path, cfg_override=dict(name="Eve")
+        )
         dest_data = wp.scp_down_to_bytes(dest_temp_path)
-        assert dest_data == b'Eve Eve'
+        assert dest_data == b"Eve Eve"
 
         os.remove(src_temp_path)
         os.remove(dest_temp_path)
@@ -337,24 +338,25 @@ class TestBasic(unittest.TestCase):
     def test_whiteprint_execute_mode(self):
         session = _mk_session_from_env_var_ssh_creds()
         wp = WhiteprintSimple(session)
-        wp.execute('install')
-        wp.execute('update')
-        wp.execute('clean')
-        wp.execute('start')
-        wp.execute('stop')
-        wp.execute('--random--')
+        wp.execute("install")
+        wp.execute("update")
+        wp.execute("clean")
+        wp.execute("start")
+        wp.execute("stop")
+        wp.execute("--random--")
 
     def test_siteplan(self):
         from distutils.version import LooseVersion
+
         class WhiteprintAssertTargetCfg(Whiteprint):
             def _execute(self, mode: str):
-                assert isinstance(self.cfg['_target'], dict)
-                assert isinstance(self.cfg['_target']['distro'], str)
-                assert isinstance(
-                    self.cfg['_target']['distro_version'], LooseVersion)
-                assert isinstance(self.cfg['_target']['hostname'], str)
-                assert isinstance(self.cfg['_target']['fqdn'], str)
-                assert isinstance(self.cfg['_target']['cpu_count'], int)
+                assert isinstance(self.cfg["_target"], dict)
+                assert isinstance(self.cfg["_target"]["distro"], str)
+                assert isinstance(self.cfg["_target"]["distro_version"], LooseVersion)
+                assert isinstance(self.cfg["_target"]["hostname"], str)
+                assert isinstance(self.cfg["_target"]["fqdn"], str)
+                assert isinstance(self.cfg["_target"]["cpu_count"], int)
+
             def _validate(self, mode: str):
                 return None
 
@@ -376,27 +378,23 @@ class TestBasic(unittest.TestCase):
         sp.install()
 
         wp = create_blank_whiteprint()
-        assert b'alice' == \
-            wp.scp_down_to_bytes(WhiteprintWriteTemp.temp_file_path)
+        assert b"alice" == wp.scp_down_to_bytes(WhiteprintWriteTemp.temp_file_path)
 
         # Test siteplan default override
-        sp.plan[0].cfg['value'] = 'bob'
+        sp.plan[0].cfg["value"] = "bob"
         sp.install()
-        assert b'bob' == \
-            wp.scp_down_to_bytes(WhiteprintWriteTemp.temp_file_path)
+        assert b"bob" == wp.scp_down_to_bytes(WhiteprintWriteTemp.temp_file_path)
 
         # Test siteplan explicit override
-        sp.cfg[WhiteprintWriteTemp] = {'value': 'eve'}
+        sp.cfg[WhiteprintWriteTemp] = {"value": "eve"}
         sp.install()
-        assert b'eve' == \
-            wp.scp_down_to_bytes(WhiteprintWriteTemp.temp_file_path)
+        assert b"eve" == wp.scp_down_to_bytes(WhiteprintWriteTemp.temp_file_path)
 
         # Test siteplan explicit override by alias
-        sp.plan[0].alias = 'simple'
-        sp.cfg['simple'] = {'value': 'foo'}
+        sp.plan[0].alias = "simple"
+        sp.cfg["simple"] = {"value": "foo"}
         sp.install()
-        assert b'foo' == \
-            wp.scp_down_to_bytes(WhiteprintWriteTemp.temp_file_path)
+        assert b"foo" == wp.scp_down_to_bytes(WhiteprintWriteTemp.temp_file_path)
 
         sp.clean()
 
@@ -406,7 +404,7 @@ class TestBasic(unittest.TestCase):
                 pass
 
             def _validate(self, mode: str):
-                return 'bad'
+                return "bad"
 
         class SitePlanBad(SitePlan):
             plan = [
@@ -414,15 +412,15 @@ class TestBasic(unittest.TestCase):
             ]
 
         sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanBad)
-        res = sp.validate('install')
-        assert res == 'bad'
+        res = sp.validate("install")
+        assert res == "bad"
 
         class WhiteprintInvalid2(Whiteprint):
             def _execute(self, mode: str):
                 pass
 
             def _validate(self, mode: str):
-                raise ValidationError('err')
+                raise ValidationError("err")
 
         class SitePlanBad2(SitePlan):
             plan = [
@@ -430,17 +428,18 @@ class TestBasic(unittest.TestCase):
             ]
 
         sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanBad2)
-        res = sp.validate('install')
-        assert res == 'err'
+        res = sp.validate("install")
+        assert res == "err"
 
     def test_prefab_apt(self):
         class WhiteprintPrefab(Whiteprint):
             prefabs = [
-                Prefab(Apt, {'packages': ['python3', 'python3-dev']}),
+                Prefab(Apt, {"packages": ["python3", "python3-dev"]}),
             ]
 
             def _execute(self, mode: str):
                 pass
+
             def _validate(self, mode: str):
                 return None
 
@@ -450,45 +449,51 @@ class TestBasic(unittest.TestCase):
             ]
 
         # Test installation
-        res = ExecOutput(0, b'', b'')
-        with patch.object(Whiteprint, 'exec', return_value=res) as mock_method:
+        res = ExecOutput(0, b"", b"")
+        with patch.object(Whiteprint, "exec", return_value=res) as mock_method:
             sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
             sp.target_host_cfg = {}
             assert sp.install() is None
             mock_method.assert_called_once_with(
-                'DEBIAN_FRONTEND=noninteractive apt install -y python3 python3-dev')
+                "DEBIAN_FRONTEND=noninteractive apt install -y python3 python3-dev"
+            )
 
         # Test correct installation
-        stdout = textwrap.dedent("""\
+        stdout = textwrap.dedent(
+            """\
             python3/bionic-updates 3.6.7-1~18.04 amd64 [upgradable from: 3.6.5-3ubuntu1]
             python3-dev/bionic-updates 3.6.7-1~18.04 amd64 [upgradable from: 3.6.5-3ubuntu1]
-            """).encode('utf-8')
-        res = ExecOutput(0, stdout, b'')
-        with patch.object(Whiteprint, 'exec', return_value=res) as mock_method:
+            """
+        ).encode("utf-8")
+        res = ExecOutput(0, stdout, b"")
+        with patch.object(Whiteprint, "exec", return_value=res) as mock_method:
             sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
             sp.target_host_cfg = {}
-            assert sp.validate('install') is None
-            mock_method.assert_called_once_with('apt -qq list python3 python3-dev')
+            assert sp.validate("install") is None
+            mock_method.assert_called_once_with("apt -qq list python3 python3-dev")
 
         # Try bad installation
-        stdout = textwrap.dedent("""\
+        stdout = textwrap.dedent(
+            """\
             python3/bionic-updates 3.6.7-1~18.04 amd64 [upgradable from: 3.6.5-3ubuntu1]
-            """).encode('utf-8')
-        res = ExecOutput(0, stdout, b'')
-        with patch.object(Whiteprint, 'exec', return_value=res) as mock_method:
+            """
+        ).encode("utf-8")
+        res = ExecOutput(0, stdout, b"")
+        with patch.object(Whiteprint, "exec", return_value=res) as mock_method:
             sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
             sp.target_host_cfg = {}
-            assert sp.validate('install') == "Apt package 'python3-dev' missing."
-            mock_method.assert_called_once_with('apt -qq list python3 python3-dev')
+            assert sp.validate("install") == "Apt package 'python3-dev' missing."
+            mock_method.assert_called_once_with("apt -qq list python3 python3-dev")
 
     def test_prefab_pip3(self):
         class WhiteprintPrefab(Whiteprint):
             prefabs = [
-                Prefab(Pip3, {'packages': ['stone', 'marchitect']}),
+                Prefab(Pip3, {"packages": ["stone", "marchitect"]}),
             ]
 
             def _execute(self, mode: str):
                 pass
+
             def _validate(self, mode: str):
                 return None
 
@@ -498,49 +503,55 @@ class TestBasic(unittest.TestCase):
             ]
 
         # Test installation
-        res = ExecOutput(0, b'', b'')
-        with patch.object(Whiteprint, 'exec', return_value=res) as mock_method:
+        res = ExecOutput(0, b"", b"")
+        with patch.object(Whiteprint, "exec", return_value=res) as mock_method:
             sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
             sp.target_host_cfg = {}
             assert sp.install() is None
-            mock_method.assert_called_once_with('pip3 install stone marchitect')
+            mock_method.assert_called_once_with("pip3 install stone marchitect")
 
         # Test correct installation
-        stdout = textwrap.dedent("""\
+        stdout = textwrap.dedent(
+            """\
             Name: stone
             Version: 0.1
             --
             Name: marchitect
             Version: 0.1
-            """).encode('utf-8')
-        res = ExecOutput(0, stdout, b'')
-        with patch.object(Whiteprint, 'exec', return_value=res) as mock_method:
+            """
+        ).encode("utf-8")
+        res = ExecOutput(0, stdout, b"")
+        with patch.object(Whiteprint, "exec", return_value=res) as mock_method:
             sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
             sp.target_host_cfg = {}
-            assert sp.validate('install') is None
-            mock_method.assert_called_once_with('pip3 show stone marchitect')
+            assert sp.validate("install") is None
+            mock_method.assert_called_once_with("pip3 show stone marchitect")
 
         # Try bad installation
-        stdout = textwrap.dedent("""\
+        stdout = textwrap.dedent(
+            """\
             Name: stone
             Version: 0.1
-            """).encode('utf-8')
-        res = ExecOutput(0, stdout, b'')
-        with patch.object(Whiteprint, 'exec', return_value=res) as mock_method:
+            """
+        ).encode("utf-8")
+        res = ExecOutput(0, stdout, b"")
+        with patch.object(Whiteprint, "exec", return_value=res) as mock_method:
             sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
             sp.target_host_cfg = {}
-            assert sp.validate('install') == "Pip3 package 'marchitect' missing."
-            mock_method.assert_called_once_with('pip3 show stone marchitect')
+            assert sp.validate("install") == "Pip3 package 'marchitect' missing."
+            mock_method.assert_called_once_with("pip3 show stone marchitect")
 
     def test_prefab_folder_exists(self):
         path = temp_file_path()
+
         class WhiteprintPrefab(Whiteprint):
             prefabs = [
-                Prefab(FolderExists, {'path': path}),
+                Prefab(FolderExists, {"path": path}),
             ]
 
             def _execute(self, mode: str):
                 pass
+
             def _validate(self, mode: str):
                 return None
 
@@ -550,57 +561,57 @@ class TestBasic(unittest.TestCase):
             ]
 
         sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
-        sp.execute('clean')
-        sp.validate('clean')
+        sp.execute("clean")
+        sp.validate("clean")
 
         # Test folder creation
-        sp.execute('install')
+        sp.execute("install")
         assert os.path.exists(path)
-        sp.validate('install')
+        sp.validate("install")
 
         # Test mode check
-        WhiteprintPrefab.prefabs[0].cfg['mode'] = 0o557
-        res = sp.validate('install')
+        WhiteprintPrefab.prefabs[0].cfg["mode"] = 0o557
+        res = sp.validate("install")
         assert res == "expected '%s' to have mode 557, got 775." % path
 
         # Test owner check
-        WhiteprintPrefab.prefabs[0].cfg['group'] = 'theempire'
-        res = sp.validate('install')
+        WhiteprintPrefab.prefabs[0].cfg["group"] = "theempire"
+        res = sp.validate("install")
         assert res.startswith("expected '%s' to have group 'theempire', got " % path)
 
         # Test group check
-        WhiteprintPrefab.prefabs[0].cfg['owner'] = 'darthvader'
-        res = sp.validate('install')
+        WhiteprintPrefab.prefabs[0].cfg["owner"] = "darthvader"
+        res = sp.validate("install")
         assert res.startswith("expected '%s' to have owner 'darthvader', got " % path)
 
         # Test clean
-        sp.execute('clean')
+        sp.execute("clean")
         assert not os.path.exists(path)
 
         # Test missing folder
-        res = sp.validate('install')
+        res = sp.validate("install")
         assert res == "'{}' does not exist.".format(path)
 
         # Test file in place of directory
-        open(path, 'w').close()
-        res = sp.validate('install')
+        open(path, "w").close()
+        res = sp.validate("install")
         assert res == "'%s' is not a directory." % path
-        sp.execute('clean')
+        sp.execute("clean")
         assert not os.path.exists(path)
 
         # Test mode set on create
-        del WhiteprintPrefab.prefabs[0].cfg['group']
-        del WhiteprintPrefab.prefabs[0].cfg['owner']
-        WhiteprintPrefab.prefabs[0].cfg['mode'] = 0o557
-        sp.execute('install')
-        sp.validate('install')
+        del WhiteprintPrefab.prefabs[0].cfg["group"]
+        del WhiteprintPrefab.prefabs[0].cfg["owner"]
+        WhiteprintPrefab.prefabs[0].cfg["mode"] = 0o557
+        sp.execute("install")
+        sp.validate("install")
 
         # Test remove_on_clean flag
-        WhiteprintPrefab.prefabs[0].cfg['remove_on_clean'] = False
-        sp.execute('clean')
+        WhiteprintPrefab.prefabs[0].cfg["remove_on_clean"] = False
+        sp.execute("clean")
         assert os.path.exists(path)
-        WhiteprintPrefab.prefabs[0].cfg['remove_on_clean'] = True
-        sp.execute('clean')
+        WhiteprintPrefab.prefabs[0].cfg["remove_on_clean"] = True
+        sp.execute("clean")
         assert not os.path.exists(path)
 
     def test_computed_prefabs(self):
@@ -609,13 +620,16 @@ class TestBasic(unittest.TestCase):
 
         class WhiteprintPrefab(Whiteprint):
             prefabs = [
-                Prefab(FolderExists, {'path': path1}),
+                Prefab(FolderExists, {"path": path1}),
             ]
+
             @classmethod
             def _compute_prefabs(cls, cfg: Dict[str, Any]):
-                return [Prefab(FolderExists, {'path': cfg['path']})]
+                return [Prefab(FolderExists, {"path": cfg["path"]})]
+
             def _execute(self, mode: str):
                 pass
+
             def _validate(self, mode: str):
                 return None
 
@@ -625,24 +639,26 @@ class TestBasic(unittest.TestCase):
             ]
 
         sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
-        sp.cfg[WhiteprintPrefab] = {'path': path2}
-        sp.execute('install')
+        sp.cfg[WhiteprintPrefab] = {"path": path2}
+        sp.execute("install")
         assert os.path.exists(path1)
         assert os.path.exists(path2)
-        sp.execute('clean')
+        sp.execute("clean")
         assert not os.path.exists(path1)
         assert not os.path.exists(path1)
 
     def test_prefab_line_in_file(self):
         path = temp_file_path()
-        contents = 'ab c\'"'
+        contents = "ab c'\""
+
         class WhiteprintPrefab(Whiteprint):
             prefabs = [
-                Prefab(LineInFile, {'path': path, 'line': contents}),
+                Prefab(LineInFile, {"path": path, "line": contents}),
             ]
 
             def _execute(self, mode: str):
                 pass
+
             def _validate(self, mode: str):
                 return None
 
@@ -654,36 +670,36 @@ class TestBasic(unittest.TestCase):
         sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
 
         # Test that we're clean to begin with
-        sp.validate('clean')
+        sp.validate("clean")
 
         # Test write over non-existent file
-        sp.execute('install')
+        sp.execute("install")
         with open(path) as f:
-            assert f.read() == contents + '\n'
-        sp.validate('install')
+            assert f.read() == contents + "\n"
+        sp.validate("install")
 
         # Test cleaning process
-        sp.execute('clean')
-        sp.validate('clean')
+        sp.execute("clean")
+        sp.validate("clean")
         os.remove(path)
 
         # Test with existing content
         dummy_line = '\'test line"""'
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             f.write(dummy_line)
-            f.write('\n')
-        sp.validate('clean')
+            f.write("\n")
+        sp.validate("clean")
 
         # Test append to existing file
-        sp.execute('install')
+        sp.execute("install")
         with open(path) as f:
-            assert f.read() == dummy_line + '\n' + contents + '\n'
+            assert f.read() == dummy_line + "\n" + contents + "\n"
 
         # Test proper removal of single line
         sp.clean()
-        sp.validate('clean')
+        sp.validate("clean")
         with open(path) as f:
-            assert f.read() == dummy_line + '\n'
+            assert f.read() == dummy_line + "\n"
         os.remove(path)
 
     def test_nested_whiteprints(self):
@@ -692,19 +708,23 @@ class TestBasic(unittest.TestCase):
 
         class WhiteprintPrefab(Whiteprint):
             prefabs = [
-                Prefab(FolderExists, {'path': path1}),
+                Prefab(FolderExists, {"path": path1}),
             ]
+
             @classmethod
             def _compute_prefabs(cls, cfg: Dict[str, Any]):
-                return [Prefab(FolderExists, {'path': cfg['path']})]
+                return [Prefab(FolderExists, {"path": cfg["path"]})]
+
             def _execute(self, mode: str):
                 pass
+
             def _validate(self, mode: str):
                 return None
 
         class WhiteprintOuter(Whiteprint):
             def _execute(self, mode):
-                self.use_execute(mode, WhiteprintPrefab, {'path': path2})
+                self.use_execute(mode, WhiteprintPrefab, {"path": path2})
+
             def _validate(self, mode):
                 self.use_validate(mode, WhiteprintPrefab)
 
@@ -714,21 +734,22 @@ class TestBasic(unittest.TestCase):
             ]
 
         sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
-        sp.execute('install')
+        sp.execute("install")
         assert os.path.exists(path1)
         assert os.path.exists(path2)
-        sp.execute('clean')
+        sp.execute("clean")
         assert not os.path.exists(path1)
         assert not os.path.exists(path1)
 
     def test_one_off_exec(self):
         class SitePlanSimple(SitePlan):
             pass
+
         sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
-        res = sp.one_off_exec('echo hello world')
+        res = sp.one_off_exec("echo hello world")
         assert res.exit_status == 0
-        assert res.stdout == b'hello world\n'
+        assert res.stdout == b"hello world\n"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

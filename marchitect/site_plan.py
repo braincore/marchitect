@@ -24,14 +24,16 @@ from .whiteprint import (
 )
 
 
-logger = logging.getLogger('marchitect.site_plan')
+logger = logging.getLogger("marchitect.site_plan")
 
 
 class Step:
     def __init__(
-            self, whiteprint_cls: Type[Whiteprint],
-            cfg: Optional[Dict[str, Any]] = None,
-            alias: Optional[str] =None):
+        self,
+        whiteprint_cls: Type[Whiteprint],
+        cfg: Optional[Dict[str, Any]] = None,
+        alias: Optional[str] = None,
+    ):
         self.whiteprint_cls = whiteprint_cls
         self.cfg: Dict[str, Any] = cfg or {}
         self.alias = alias
@@ -48,10 +50,13 @@ class SitePlan:
     default_cfg: Dict[str, Any] = {}
 
     def __init__(
-            self, user: str, hostname: str,
-            connect_func: Callable[[], Session],
-            cfg: Dict[Union[str, Type[Whiteprint]], Dict[str, Any]],
-            rsrc_paths: List[Path]):
+        self,
+        user: str,
+        hostname: str,
+        connect_func: Callable[[], Session],
+        cfg: Dict[Union[str, Type[Whiteprint]], Dict[str, Any]],
+        rsrc_paths: List[Path],
+    ):
         """
         Args:
             user: The login user to use.
@@ -71,18 +76,24 @@ class SitePlan:
         # Config extracted from target host
         self.target_host_cfg: Optional[Dict[str, Any]] = None
         self.logger = logging.getLogger(
-            '{parent}.{name}.{target}'.format(
+            "{parent}.{name}.{target}".format(
                 parent=logger.name,
                 name=self.__class__.__name__,
-                target=self.hostname.replace('.', '_')
-        ))
+                target=self.hostname.replace(".", "_"),
+            )
+        )
 
     @classmethod
     def from_private_key(
-            cls, hostname: str, port: int, user: str, private_key: str,
-            private_key_password: Optional[str],
-            cfg: Dict[Union[str, Type[Whiteprint]], Dict[str, Any]],
-            rsrc_paths: List[Path]) -> 'SitePlan':
+        cls,
+        hostname: str,
+        port: int,
+        user: str,
+        private_key: str,
+        private_key_password: Optional[str],
+        cfg: Dict[Union[str, Type[Whiteprint]], Dict[str, Any]],
+        rsrc_paths: List[Path],
+    ) -> "SitePlan":
         """
         Creates a SitePlan that connects to the target host via a private key.
 
@@ -91,19 +102,25 @@ class SitePlan:
 
         See :meth:`__init__` for other args.
         """
+
         def connect() -> Session:
             session = SitePlan._create_session(hostname, port)
-            session.userauth_publickey_fromfile(
-                user, private_key, private_key_password)
+            session.userauth_publickey_fromfile(user, private_key, private_key_password)
             session.set_blocking(False)
             return session
+
         return cls(user, hostname, connect, cfg, rsrc_paths)
 
     @classmethod
     def from_password(
-            cls, hostname: str, port: int, user: str, password: str,
-            cfg: Dict[Union[str, Type[Whiteprint]], Dict[str, Any]],
-            rsrc_paths: List[Path]) -> 'SitePlan':
+        cls,
+        hostname: str,
+        port: int,
+        user: str,
+        password: str,
+        cfg: Dict[Union[str, Type[Whiteprint]], Dict[str, Any]],
+        rsrc_paths: List[Path],
+    ) -> "SitePlan":
         """
         Creates a SitePlan that connects to the target host via a user & pass.
 
@@ -112,11 +129,13 @@ class SitePlan:
 
         See :meth:`__init__` for other args.
         """
+
         def connect() -> Session:
             session = SitePlan._create_session(hostname, port)
             session.userauth_password(user, password)
             session.set_blocking(False)
             return session
+
         return cls(user, hostname, connect, cfg, rsrc_paths)
 
     @staticmethod
@@ -128,7 +147,8 @@ class SitePlan:
         return session
 
     def _resolve_whiteprint_rsrc_path(
-            self, whiteprint_cls: Type[Whiteprint]) -> Optional[Path]:
+        self, whiteprint_cls: Type[Whiteprint]
+    ) -> Optional[Path]:
         if whiteprint_cls.name is None:
             return None
         for rsrc_path in self.rsrc_paths:
@@ -142,12 +162,13 @@ class SitePlan:
             return self.target_host_cfg
         target_vars_wp = Whiteprint(session)
         r = target_vars_wp.exec(
-            'uname -r && '
-            'lsb_release -sir && '
-            'hostname && '
-            'hostname -f && '
-            'cat /proc/cpuinfo | grep processor | wc -l')
-        vals = r.stdout.decode('utf-8').splitlines()
+            "uname -r && "
+            "lsb_release -sir && "
+            "hostname && "
+            "hostname -f && "
+            "cat /proc/cpuinfo | grep processor | wc -l"
+        )
+        vals = r.stdout.decode("utf-8").splitlines()
         self.target_host_cfg = dict(
             user=self.user,
             host=self.hostname,
@@ -160,8 +181,9 @@ class SitePlan:
         )
         return self.target_host_cfg
 
-    def one_off_exec(self, cmd: str, stdin: Optional[bytes] = None,
-                     error_ok: bool = False) -> ExecOutput:
+    def one_off_exec(
+        self, cmd: str, stdin: Optional[bytes] = None, error_ok: bool = False
+    ) -> ExecOutput:
         session = self.connect_func()
         wp = Whiteprint(session, None, None)
         try:
@@ -175,13 +197,12 @@ class SitePlan:
         for step in self.plan:
             rsrc_path = self._resolve_whiteprint_rsrc_path(step.whiteprint_cls)
             site_cfg = copy.deepcopy(self.default_cfg)
-            site_cfg['_target'] = target_host_cfg
+            site_cfg["_target"] = target_host_cfg
             dict_deep_update(site_cfg, step.cfg)
             dict_deep_update(site_cfg, self.cfg.get(step.whiteprint_cls, {}))
             if step.alias is not None:
                 dict_deep_update(site_cfg, self.cfg.get(step.alias, {}))
-            self.logger.info(
-                'Executing %s (%s)', step.whiteprint_cls.__name__, mode)
+            self.logger.info("Executing %s (%s)", step.whiteprint_cls.__name__, mode)
             whiteprint = step.whiteprint_cls(session, site_cfg, rsrc_path)
             try:
                 whiteprint.execute(mode)
@@ -193,19 +214,19 @@ class SitePlan:
         session.disconnect()
 
     def install(self) -> None:
-        self.execute('install')
+        self.execute("install")
 
     def update(self) -> None:
-        self.execute('update')
+        self.execute("update")
 
     def clean(self) -> None:
-        self.execute('clean')
+        self.execute("clean")
 
     def start(self) -> None:
-        self.execute('start')
+        self.execute("start")
 
     def stop(self) -> None:
-        self.execute('stop')
+        self.execute("stop")
 
     def validate(self, mode: str) -> Optional[str]:
         session = self.connect_func()
@@ -214,13 +235,12 @@ class SitePlan:
         for step in self.plan:
             rsrc_path = self._resolve_whiteprint_rsrc_path(step.whiteprint_cls)
             site_cfg = copy.deepcopy(self.default_cfg)
-            site_cfg['_target'] = target_host_cfg
+            site_cfg["_target"] = target_host_cfg
             dict_deep_update(site_cfg, step.cfg)
             dict_deep_update(site_cfg, self.cfg.get(step.whiteprint_cls, {}))
             if step.alias is not None:
                 dict_deep_update(site_cfg, self.cfg.get(step.alias, {}))
-            self.logger.info(
-                'Validating %s (%s)', step.whiteprint_cls.__name__, mode)
+            self.logger.info("Validating %s (%s)", step.whiteprint_cls.__name__, mode)
             whiteprint = step.whiteprint_cls(session, site_cfg, rsrc_path)
             try:
                 err_msg = whiteprint.validate(mode)
@@ -228,8 +248,11 @@ class SitePlan:
                 err_msg = e.log_msg()
             if err_msg is not None:
                 self.logger.error(
-                    '%s failed validation (%s): %s', step.whiteprint_cls.__name__,
-                    mode, err_msg)
+                    "%s failed validation (%s): %s",
+                    step.whiteprint_cls.__name__,
+                    mode,
+                    err_msg,
+                )
                 break
         session.disconnect()
         return err_msg

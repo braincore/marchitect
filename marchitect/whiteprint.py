@@ -16,6 +16,7 @@ from typing import (
 
 import jinja2
 import schema  # type: ignore
+
 # Hacks for mypy (ssh2 has no types)
 import ssh2.exceptions  # type: ignore  # pylint: disable=W0611
 import ssh2.session  # type: ignore  # pylint: disable=W0611
@@ -48,14 +49,14 @@ class ExecOutput:
         self.stderr = stderr
 
     def __repr__(self) -> str:
-        return 'ExitStatus({!r}, {!r}, {!r})'.format(
+        return "ExitStatus({!r}, {!r}, {!r})".format(
             self.exit_status,
             self.stdout[-100:],
             self.stderr[-100:],
         )
 
 
-def wait_session(session: Session, timeout: float=1) -> Tuple[bool, bool]:
+def wait_session(session: Session, timeout: float = 1) -> Tuple[bool, bool]:
     """
     Waits for at most timeout seconds for data to be available for reading, or
     for write pipe to available for writing.
@@ -67,16 +68,14 @@ def wait_session(session: Session, timeout: float=1) -> Tuple[bool, bool]:
     directions = session.block_directions()
     if directions == 0:
         return False, False
-    read_fds = [session.sock] \
-        if (directions & LIBSSH2_SESSION_BLOCK_INBOUND) else []
-    write_fds = [session.sock] \
-        if (directions & LIBSSH2_SESSION_BLOCK_OUTBOUND) else []
+    read_fds = [session.sock] if (directions & LIBSSH2_SESSION_BLOCK_INBOUND) else []
+    write_fds = [session.sock] if (directions & LIBSSH2_SESSION_BLOCK_OUTBOUND) else []
     res = select.select(read_fds, write_fds, (), timeout)
-    assert len(res[2]) == 0, 'Unhandled exceptional fds'
+    assert len(res[2]) == 0, "Unhandled exceptional fds"
     return len(res[0]) > 0, len(res[1]) > 0
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def retry_eagain(f: Callable[..., T], *args: Any) -> T:
@@ -101,6 +100,7 @@ class RemoteFileNotFoundError(WhiteprintError):
     """
     Raised when downloading a file via SCP fails because it does not exist.
     """
+
     def __init__(self, msg: str, inner: SCPProtocolError):
         super().__init__(msg, inner)
         self.msg = msg
@@ -115,6 +115,7 @@ class RemoteTargetDirError(WhiteprintError):
     Raised when uploading a file via SCP fails because the target directory
     does not exist.
     """
+
     def __init__(self, msg: str, inner: SCPProtocolError):
         super().__init__(msg, inner)
         self.msg = msg
@@ -128,19 +129,17 @@ class RemoteExecError(WhiteprintError):
     """
     Raised when the remote exec returned a non-zero exit status.
     """
+
     def __init__(self, cmd: str, exec_output: ExecOutput):
         super().__init__(cmd, exec_output)
         self.cmd = cmd
         self.exec_output = exec_output
 
     def log_msg(self) -> str:
-        stdout = self.exec_output.stdout.decode('utf-8', 'ignore')
-        stderr = self.exec_output.stderr.decode('utf-8', 'ignore')
+        stdout = self.exec_output.stdout.decode("utf-8", "ignore")
+        stderr = self.exec_output.stderr.decode("utf-8", "ignore")
         return (
-            'Remote Exec Failed: {}\n'
-            'exit status: {}\n'
-            'stdout: {}\n'
-            'stderr: {}\n'
+            "Remote Exec Failed: {}\n" "exit status: {}\n" "stdout: {}\n" "stderr: {}\n"
         ).format(
             self.cmd,
             self.exec_output.exit_status,
@@ -151,6 +150,7 @@ class RemoteExecError(WhiteprintError):
 
 class ValidationError(WhiteprintError):
     """Raised when whiteprint validation fails."""
+
     def __init__(self, msg: str):
         super().__init__(msg)
         self.msg = msg
@@ -160,16 +160,17 @@ class ValidationError(WhiteprintError):
 
 
 from distutils.version import LooseVersion
+
 _target_host_cfg_schema = {
-    schema.Optional('_target'): {
-        'user': str,
-        'host': str,
-        'kernel': str,
-        'distro': str,
-        'distro_version': LooseVersion,
-        'hostname': str,
-        'fqdn': str,
-        'cpu_count': int,
+    schema.Optional("_target"): {
+        "user": str,
+        "host": str,
+        "kernel": str,
+        "distro": str,
+        "distro_version": LooseVersion,
+        "hostname": str,
+        "fqdn": str,
+        "cpu_count": int,
     }
 }
 
@@ -194,11 +195,14 @@ class Whiteprint:
 
     cfg_schema: Optional[Dict[str, Any]] = None
 
-    prefabs: List['Prefab'] = []
+    prefabs: List["Prefab"] = []
 
     def __init__(
-            self, session: Session, site_cfg: Optional[Dict[str, Any]] = None,
-            rsrc_path: Optional[Path] = None) -> None:
+        self,
+        session: Session,
+        site_cfg: Optional[Dict[str, Any]] = None,
+        rsrc_path: Optional[Path] = None,
+    ) -> None:
         """
         Args:
              session: Must be set to non-blocking mode. This class will not
@@ -216,19 +220,22 @@ class Whiteprint:
 
         if self.cfg_schema:
             self.cfg = schema.Schema(
-                {**self.cfg_schema, **_target_host_cfg_schema})\
-                .validate(self.cfg)
+                {**self.cfg_schema, **_target_host_cfg_schema}
+            ).validate(self.cfg)
 
         computed_prefabs = self._compute_prefabs(self.cfg)
         if computed_prefabs:
             self.prefabs = self.prefabs[:] + computed_prefabs
 
     @classmethod
-    def _compute_prefabs(cls, cfg: Dict[str, Any]) -> List['Prefab']:  # pylint: disable=W0613
+    def _compute_prefabs(
+        cls, cfg: Dict[str, Any]  # pylint: disable=W0613
+    ) -> List["Prefab"]:
         return []
 
-    def exec(self, cmd: str, stdin: Optional[bytes] = None,
-             error_ok: bool = False) -> ExecOutput:
+    def exec(
+        self, cmd: str, stdin: Optional[bytes] = None, error_ok: bool = False
+    ) -> ExecOutput:
         """
         Executes cmd in a session channel.
 
@@ -254,13 +261,12 @@ class Whiteprint:
             chan.write(stdin)
         chan.send_eof()
 
-        stdout = b''
+        stdout = b""
         stdout_done = False
-        stderr = b''
+        stderr = b""
         stderr_done = False
         while True:
-            res = retry_eagain(
-                lambda: wait_session(self.session, 0.1))
+            res = retry_eagain(lambda: wait_session(self.session, 0.1))
             if res[0]:
                 if not stdout_done:
                     size, data = chan.read()
@@ -270,7 +276,7 @@ class Whiteprint:
                     if size == 0:
                         stdout_done = True
                     elif size != LIBSSH2_ERROR_EAGAIN:
-                        assert False, 'Unexpected can read error: %d' % size
+                        assert False, "Unexpected can read error: %d" % size
                 else:
                     # Sanity check
                     assert chan.read()[0] == 0
@@ -283,7 +289,7 @@ class Whiteprint:
                     if size == 0:
                         stderr_done = True
                     elif size != LIBSSH2_ERROR_EAGAIN:
-                        assert False, 'Unexpected can read error: %d' % size
+                        assert False, "Unexpected can read error: %d" % size
                 else:
                     # Sanity check
                     assert chan.read_stderr()[0] == 0
@@ -301,7 +307,7 @@ class Whiteprint:
                     if size == 0:
                         stdout_done = True
                     else:
-                        assert False, 'Unexpected final read error: %d' % size
+                        assert False, "Unexpected final read error: %d" % size
                 if not stderr_done:
                     size, data = chan.read_stderr()
                     while size > 0:
@@ -310,7 +316,7 @@ class Whiteprint:
                     if size == 0:
                         stderr_done = True
                     else:
-                        assert False, 'Unexpected final read error: %d' % size
+                        assert False, "Unexpected final read error: %d" % size
                 assert stdout_done
                 assert stderr_done
                 # Need to wait for a successful close (0) to get the exit code.
@@ -321,45 +327,45 @@ class Whiteprint:
                 else:
                     return exec_output
             else:
-                assert False, 'Unexpected wait_eof value: {}'.format(res)
+                assert False, "Unexpected wait_eof value: {}".format(res)
 
     def _resolve_rsrc(self, raw_path: str) -> Path:
         raw_path_obj = Path(raw_path)
         if raw_path_obj.is_absolute():
             return raw_path_obj
         else:
-            assert self.rsrc_path is not None, \
-                'Need rsrc_path for lookup of %r but none set.' % raw_path
+            assert self.rsrc_path is not None, (
+                "Need rsrc_path for lookup of %r but none set." % raw_path
+            )
             resolved_path = self.rsrc_path / raw_path_obj
-            assert resolved_path.exists(), 'Could not find rsrc %r' % raw_path
+            assert resolved_path.exists(), "Could not find rsrc %r" % raw_path
             return resolved_path
 
     def _scp_send64_helper(
-            self, dest_path: str, mode: int, size: int, mtime: int, atime: int
-            ) -> Channel:
+        self, dest_path: str, mode: int, size: int, mtime: int, atime: int
+    ) -> Channel:
         try:
-            return retry_eagain(self.session.scp_send64,
-                dest_path, mode & 0o777, size, mtime, atime)
+            return retry_eagain(
+                self.session.scp_send64, dest_path, mode & 0o777, size, mtime, atime
+            )
         except SCPProtocolError as e:
             # Unfortunately, very coarse error without any more info. It very
             # possibly occurs in other circumstances as well.
             assert e.args == ()
-            raise RemoteTargetDirError('%r is a bad path.' % dest_path, e) from e
+            raise RemoteTargetDirError("%r is a bad path." % dest_path, e) from e
 
     def _scp_recv2_helper(self, src_path: str) -> Tuple[Channel, FileInfo]:
         try:
             # Hack for mypy
-            scp_recv2: Callable[..., Tuple[Channel, FileInfo]] = \
-                self.session.scp_recv2
+            scp_recv2: Callable[..., Tuple[Channel, FileInfo]] = self.session.scp_recv2
             return retry_eagain(scp_recv2, src_path)
         except SCPProtocolError as e:
             # Unfortunately, very coarse error without any more info. It very
             # possibly occurs in other circumstances as well.
             assert e.args == ()
-            raise RemoteFileNotFoundError('%r not found.' % src_path, e) from e
+            raise RemoteFileNotFoundError("%r not found." % src_path, e) from e
 
-    def scp_up(self, src_path: str, dest_path: str,
-               mode: Optional[int] = None) -> None:
+    def scp_up(self, src_path: str, dest_path: str, mode: Optional[int] = None) -> None:
         """
         Args:
             src_path: A path on the local filesystem.
@@ -372,9 +378,13 @@ class Whiteprint:
         if mode is None:
             mode = fileinfo.st_mode
         chan = self._scp_send64_helper(
-            dest_path, mode, fileinfo.st_size, int(fileinfo.st_mtime),
-            int(fileinfo.st_atime))
-        with src_path_obj.open('rb') as f:
+            dest_path,
+            mode,
+            fileinfo.st_size,
+            int(fileinfo.st_mtime),
+            int(fileinfo.st_atime),
+        )
+        with src_path_obj.open("rb") as f:
             for data in f:
                 mv_data = memoryview(data)
                 while True:
@@ -398,7 +408,7 @@ class Whiteprint:
         """
         chan, fileinfo = self._scp_recv2_helper(src_path)
         expected_size = fileinfo.st_size
-        with open(dest_path, 'wb') as f:
+        with open(dest_path, "wb") as f:
             while True:
                 size, data = chan.read()
                 while size == LIBSSH2_ERROR_EAGAIN:
@@ -411,8 +421,7 @@ class Whiteprint:
                     f.write(data)
                     expected_size -= size
 
-    def scp_up_from_bytes(
-            self, data: bytes, dest_path: str, mode: int = 0o664) -> None:
+    def scp_up_from_bytes(self, data: bytes, dest_path: str, mode: int = 0o664) -> None:
         """
         Create a new file at the destination from bytes in memory.
 
@@ -426,11 +435,11 @@ class Whiteprint:
 
         def chunks(l: bytes, n: int) -> Iterable[bytes]:
             n = max(1, n)
-            return (l[i:i + n] for i in range(0, len(l), n))
+            return (l[i : i + n] for i in range(0, len(l), n))
+
         # Goal: mtime/atime to be set to the current time on the target
         # machine. Solution: Setting mtime/atime to 0 seems to work.
-        chan = self._scp_send64_helper(
-            dest_path, mode, len(data), 0, 0)
+        chan = self._scp_send64_helper(dest_path, mode, len(data), 0, 0)
         # TODO: Find optimal chunk size.
         for chunk in chunks(data, 32_000):
             mv_chunk = memoryview(chunk)
@@ -460,7 +469,7 @@ class Whiteprint:
         chan, fileinfo = self._scp_recv2_helper(src_path)
         expected_size = fileinfo.st_size
 
-        data = b''
+        data = b""
         while True:
             size, chunk = chan.read()
             while size == LIBSSH2_ERROR_EAGAIN:
@@ -473,8 +482,7 @@ class Whiteprint:
                 data += chunk
                 expected_size -= size
 
-    def _resolve_cfg(
-            self, cfg_override: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    def _resolve_cfg(self, cfg_override: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         if cfg_override is not None:
             cfg = copy.deepcopy(self.cfg)
             dict_deep_update(cfg, cfg_override)
@@ -483,8 +491,12 @@ class Whiteprint:
         return cfg
 
     def scp_up_template(
-            self, src_path: str, dest_path: str, mode: Optional[int] = None,
-            cfg_override: Optional[Dict[str, Any]] = None) -> None:
+        self,
+        src_path: str,
+        dest_path: str,
+        mode: Optional[int] = None,
+        cfg_override: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Args:
             src_path: Path to a jinja template file. Variable substitution will
@@ -502,15 +514,19 @@ class Whiteprint:
         with src_path_obj.open() as f:
             template_contents = f.read()
         template = jinja2.Template(template_contents)
-        rendered_template = template.render(cfg).encode('utf-8')
+        rendered_template = template.render(cfg).encode("utf-8")
         self.scp_up_from_bytes(rendered_template, dest_path, mode)
 
     def scp_up_template_from_str(
-            self, template_contents: str, dest_path: str, mode: int = 0o664,
-            cfg_override: Optional[Dict[str, Any]] = None) -> None:
+        self,
+        template_contents: str,
+        dest_path: str,
+        mode: int = 0o664,
+        cfg_override: Optional[Dict[str, Any]] = None,
+    ) -> None:
         cfg = self._resolve_cfg(cfg_override)
         template = jinja2.Template(template_contents)
-        rendered_template = template.render(cfg).encode('utf-8')
+        rendered_template = template.render(cfg).encode("utf-8")
         self.scp_up_from_bytes(rendered_template, dest_path, mode)
 
     def execute(self, mode: str) -> None:
@@ -547,16 +563,24 @@ class Whiteprint:
     def _validate(self, mode: str) -> Optional[str]:
         raise NotImplementedError
 
-    def use_execute(self, mode: str, whiteprint_cls: Type['Whiteprint'],
-                    cfg: Optional[Dict[str, Any]] = None) -> None:
+    def use_execute(
+        self,
+        mode: str,
+        whiteprint_cls: Type["Whiteprint"],
+        cfg: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Execute another whiteprint from this whiteprint.
         """
         wp = whiteprint_cls(self.session, cfg)
         wp.execute(mode)
 
-    def use_validate(self, mode: str, whiteprint_cls: Type['Whiteprint'],
-                     cfg: Optional[Dict[str, Any]] = None) -> None:
+    def use_validate(
+        self,
+        mode: str,
+        whiteprint_cls: Type["Whiteprint"],
+        cfg: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Run validation of another whiteprint from this whiteprint.
 
