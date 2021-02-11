@@ -5,7 +5,7 @@ README = (Path(__file__).parent / 'README.md').read_text()
 
 setup(
     name='marchitect',
-    version='0.4',
+    version='0.5',
     description='Machine architect for software deployment.',
     long_description=README,
     long_description_content_type='text/markdown',
