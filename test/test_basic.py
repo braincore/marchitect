@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 from ssh2.session import Session  # pylint: disable=E0611
 
-from marchitect.prefab import Apt, FolderExists, LineInFile, Pip3
+from marchitect.prefab import Apt, FolderExists, LineInFile, Pip3, Prefab
 from marchitect.site_plan import (
     Step,
     SitePlan,
@@ -446,7 +446,7 @@ class TestBasic(unittest.TestCase):
     def test_prefab_apt(self):
         class WhiteprintPrefab(Whiteprint):
             prefabs = [
-                Apt(['python3', 'python3-dev']),
+                Prefab(Apt, {'packages': ['python3', 'python3-dev']}),
             ]
 
             def _execute(self, mode: str):
@@ -494,7 +494,7 @@ class TestBasic(unittest.TestCase):
     def test_prefab_pip3(self):
         class WhiteprintPrefab(Whiteprint):
             prefabs = [
-                Pip3(['stone', 'marchitect']),
+                Prefab(Pip3, {'packages': ['stone', 'marchitect']}),
             ]
 
             def _execute(self, mode: str):
@@ -546,7 +546,7 @@ class TestBasic(unittest.TestCase):
         path = temp_file_path()
         class WhiteprintPrefab(Whiteprint):
             prefabs = [
-                FolderExists(path),
+                Prefab(FolderExists, {'path': path}),
             ]
 
             def _execute(self, mode: str):
@@ -569,17 +569,17 @@ class TestBasic(unittest.TestCase):
         sp.validate('install')
 
         # Test mode check
-        WhiteprintPrefab.prefabs[0].mode = 0o557
+        WhiteprintPrefab.prefabs[0].cfg['mode'] = 0o557
         res = sp.validate('install')
         assert res == "expected '%s' to have mode 557, got 775." % path
 
         # Test owner check
-        WhiteprintPrefab.prefabs[0].group = 'theempire'
+        WhiteprintPrefab.prefabs[0].cfg['group'] = 'theempire'
         res = sp.validate('install')
         assert res.startswith("expected '%s' to have group 'theempire', got " % path)
 
         # Test group check
-        WhiteprintPrefab.prefabs[0].owner = 'darthvader'
+        WhiteprintPrefab.prefabs[0].cfg['owner'] = 'darthvader'
         res = sp.validate('install')
         assert res.startswith("expected '%s' to have owner 'darthvader', got " % path)
 
@@ -599,17 +599,17 @@ class TestBasic(unittest.TestCase):
         assert not os.path.exists(path)
 
         # Test mode set on create
-        WhiteprintPrefab.prefabs[0].group = None
-        WhiteprintPrefab.prefabs[0].owner = None
-        WhiteprintPrefab.prefabs[0].mode = 0o557
+        del WhiteprintPrefab.prefabs[0].cfg['group']
+        del WhiteprintPrefab.prefabs[0].cfg['owner']
+        WhiteprintPrefab.prefabs[0].cfg['mode'] = 0o557
         sp.execute('install')
         sp.validate('install')
 
         # Test remove_on_clean flag
-        WhiteprintPrefab.prefabs[0].remove_on_clean = False
+        WhiteprintPrefab.prefabs[0].cfg['remove_on_clean'] = False
         sp.execute('clean')
         assert os.path.exists(path)
-        WhiteprintPrefab.prefabs[0].remove_on_clean = True
+        WhiteprintPrefab.prefabs[0].cfg['remove_on_clean'] = True
         sp.execute('clean')
         assert not os.path.exists(path)
 
@@ -619,11 +619,11 @@ class TestBasic(unittest.TestCase):
 
         class WhiteprintPrefab(Whiteprint):
             prefabs = [
-                FolderExists(path1),
+                Prefab(FolderExists, {'path': path1}),
             ]
             @classmethod
             def _compute_prefabs(cls, cfg: Dict[str, Any]):
-                return [FolderExists(cfg['path'])]
+                return [Prefab(FolderExists, {'path': cfg['path']})]
             def _execute(self, mode: str):
                 pass
             def _validate(self, mode: str):
@@ -648,7 +648,7 @@ class TestBasic(unittest.TestCase):
         contents = 'ab c\'"'
         class WhiteprintPrefab(Whiteprint):
             prefabs = [
-                LineInFile(path, contents),
+                Prefab(LineInFile, {'path': path, 'line': contents}),
             ]
 
             def _execute(self, mode: str):
@@ -695,6 +695,41 @@ class TestBasic(unittest.TestCase):
         with open(path) as f:
             assert f.read() == dummy_line + '\n'
         os.remove(path)
+
+    def test_nested_whiteprints(self):
+        path1 = temp_file_path()
+        path2 = temp_file_path()
+
+        class WhiteprintPrefab(Whiteprint):
+            prefabs = [
+                Prefab(FolderExists, {'path': path1}),
+            ]
+            @classmethod
+            def _compute_prefabs(cls, cfg: Dict[str, Any]):
+                return [Prefab(FolderExists, {'path': cfg['path']})]
+            def _execute(self, mode: str):
+                pass
+            def _validate(self, mode: str):
+                return None
+
+        class WhiteprintSimple(Whiteprint):
+            def _execute(self, mode):
+                self.use_execute(mode, WhiteprintPrefab, {'path': path2})
+            def _validate(self, mode):
+                self.use_validate(mode, WhiteprintPrefab)
+
+        class SitePlanSimple(SitePlan):
+            plan = [
+                Step(WhiteprintSimple),
+            ]
+
+        sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
+        sp.execute('install')
+        assert os.path.exists(path1)
+        assert os.path.exists(path2)
+        sp.execute('clean')
+        assert not os.path.exists(path1)
+        assert not os.path.exists(path1)
 
     def test_one_off_exec(self):
         class SitePlanSimple(SitePlan):

@@ -2,6 +2,7 @@ import copy
 from pathlib import Path
 import select
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -9,6 +10,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Type,
     TypeVar,
 )
 
@@ -30,8 +32,11 @@ from ssh2.session import (  # pylint: disable=E0611
     Session,
 )
 
-from .prefab import Prefab
 from .util import dict_deep_update
+
+# Hack to avoid circular imports for mypy
+if TYPE_CHECKING:
+    from .prefab import Prefab
 
 
 class ExecOutput:
@@ -177,7 +182,7 @@ class Whiteprint:
     # Deprecated: Use cfg_schema
     required_cfg: List[str] = []
 
-    prefabs: List[Prefab] = []
+    prefabs: List['Prefab'] = []
 
     def __init__(
             self, session: Session, site_cfg: Optional[Dict[str, Any]] = None,
@@ -202,15 +207,17 @@ class Whiteprint:
                 raise KeyError('Cfg {!r} must be set'.format(required_key))
 
         if self.cfg_schema:
-            schema.Schema(self.cfg_schema, ignore_extra_keys=True)\
-                .validate(self.cfg)
+            # FIXME: Do an assignment (so that Use() takes effect)
+            # Remove ignore_extra_keys...
+            schema.Schema(
+                self.cfg_schema, ignore_extra_keys=True).validate(self.cfg)
 
         computed_prefabs = self._compute_prefabs(self.cfg)
         if computed_prefabs:
             self.prefabs = self.prefabs[:] + computed_prefabs
 
     @classmethod
-    def _compute_prefabs(cls, cfg: Dict[str, Any]) -> List[Prefab]:  # pylint: disable=W0613
+    def _compute_prefabs(cls, cfg: Dict[str, Any]) -> List['Prefab']:  # pylint: disable=W0613
         return []
 
     def exec(self, cmd: str, stdin: Optional[bytes] = None,
@@ -501,7 +508,10 @@ class Whiteprint:
 
     def execute(self, mode: str) -> None:
         for prefab in self.prefabs:
-            prefab.execute(self, mode)
+            try:
+                self.use_execute(mode, prefab.whiteprint_cls, prefab.cfg)
+            except NotImplementedError:
+                pass
         try:
             self._execute(mode)
         except NotImplementedError:
@@ -518,9 +528,10 @@ class Whiteprint:
 
     def validate(self, mode: str) -> Optional[str]:
         for prefab in self.prefabs:
-            res = prefab.validate(self, mode)
-            if res is not None:
-                return res
+            try:
+                self.use_validate(mode, prefab.whiteprint_cls, prefab.cfg)
+            except NotImplementedError:
+                continue
         try:
             return self._validate(mode)
         except NotImplementedError:
@@ -529,3 +540,23 @@ class Whiteprint:
     def _validate(self, mode: str) -> Optional[str]:
         raise NotImplementedError
 
+    def use_execute(self, mode: str, whiteprint_cls: Type['Whiteprint'],
+                    cfg: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Execute another whiteprint from this whiteprint.
+        """
+        wp = whiteprint_cls(self.session, cfg)
+        wp.execute(mode)
+
+    def use_validate(self, mode: str, whiteprint_cls: Type['Whiteprint'],
+                     cfg: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Run validation of another whiteprint from this whiteprint.
+
+        Raises:
+            - ValidationError: If validation failed.
+        """
+        wp = whiteprint_cls(self.session, cfg)
+        err = wp.validate(mode)
+        if err:
+            raise ValidationError(err)

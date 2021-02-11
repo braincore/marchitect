@@ -288,11 +288,11 @@ error handling strategy. In the extreme case, you can terminate servers that
 produce errors and start over with a fresh one, assuming that you're in a cloud
 environment.
 
-### Prefab
+#### Prefab
 
-Prefabs are built-in idempotent components you can add to your whiteprints.
+Prefabs are built-in, robust whiteprints you can use in your whiteprints.
 These make it easy to add common functionality with the `_execute()` and
-`_validate()` methods already defined. These are available out-of-thebox:
+`_validate()` methods already defined. These are available out-of-the-box:
 
 * `Apt`: Common Linux package manager.
 * `Pip3`: Python package manager.
@@ -302,13 +302,13 @@ These make it easy to add common functionality with the `_execute()` and
 An example:
 
 ```python
-from marchitect.prefab import Apt
+from marchitect.prefab import Apt, Prefab
 from marchitect.whiteprint import Whiteprint
 
 class HelloWorld2Whiteprint(Whiteprint):
 
     prefabs = [
-        Apt(['curl']),
+        Prefab(Apt, {'packages': ['curl']}),
     ]
 
     def _execute(self, mode: str) -> None:
@@ -328,13 +328,37 @@ from marchitect.whiteprint import Whiteprint
 
 class ExampleWhiteprint(Whiteprint):
 
+    cfg_schema = {
+        'temp_folder': str,
+    }
+
     @classmethod
     def _compute_prefabs(cls, cfg: Dict[str, Any]) -> List[Prefab]:
-        return [FolderExists(cfg['temp_folder'])]
+        return [Prefab(FolderExists, {'path': cfg['temp_folder']})]
 ```
 
 The prefabs returned by`_compute_prefabs()` will be executed after those
 specified in the `prefabs` class variable.
+
+#### Nested Whiteprints
+
+Whiteprints can use other whiteprints.
+
+```python
+from marchitect.whiteprint import Whiteprint
+
+class Example2Whiteprint(Whiteprint):
+    pass
+
+class ExampleWhiteprint(Whiteprint):
+    def _execute(self, mode: str) -> None:
+        if mode == 'install':
+            self.use_execute(mode, Example2Whiteprint, {})
+
+    def _validate(self, mode: str) -> None:
+        if mode == 'install':
+            self.use_validate(mode, Example2Whiteprint, {})
+```
 
 ### Site Plan
 
