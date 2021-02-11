@@ -419,7 +419,8 @@ class TestBasic(unittest.TestCase):
             sp = _mk_siteplan_from_env_var_ssh_creds(SitePlanSimple)
             sp.target_host_cfg = {}
             assert sp.install() is None
-            mock_method.assert_called_once_with('apt install -y python3 python3-dev')
+            mock_method.assert_called_once_with(
+                'DEBIAN_FRONTEND=noninteractive apt install -y python3 python3-dev')
 
         # Test correct installation
         stdout = textwrap.dedent("""\
