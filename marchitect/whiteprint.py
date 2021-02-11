@@ -1,6 +1,7 @@
 import copy
 from pathlib import Path
 import select
+import schema
 from typing import (
     Any,
     Callable,
@@ -161,6 +162,9 @@ class Whiteprint:
 
     default_cfg: Dict[str, Any] = {}
 
+    cfg_schema: Optional[Dict[str, Any]] = None
+
+    # Deprecated: Use cfg_schema
     required_cfg: List[str] = []
 
     prefabs: List[Prefab] = []
@@ -186,6 +190,10 @@ class Whiteprint:
         for required_key in self.required_cfg:
             if required_key not in self.cfg:
                 raise KeyError('Cfg {!r} must be set'.format(required_key))
+
+        if self.cfg_schema:
+            schema.Schema(self.cfg_schema, ignore_extra_keys=True)\
+                .validate(self.cfg)
 
         computed_prefabs = self._compute_prefabs(self.cfg)
         if computed_prefabs:

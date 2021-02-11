@@ -18,7 +18,9 @@ setup(
     zip_safe=False,
     install_requires=[
         'jinja2>=2.10',
-        'ssh2-python>=0.17.0'],
+        'ssh2-python>=0.17.0',
+        'schema>=0.7.0',
+    ],
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
     classifiers=[

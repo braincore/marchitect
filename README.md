@@ -234,6 +234,31 @@ These are stored in `self.cfg['_target']`:
 * `cpu_count`: The number of CPUs on the target host. Ex: `8`
 
 
+#### Config Var Schema
+
+Because config vars may be used in external template files, it's not readily
+observable what vars are used by a whiteprint. To make config vars explicit,
+a schema can be set using `cfg_schema`:
+
+```python
+from marchitect.whiteprint import Whiteprint
+import schema
+
+class WhiteprintExample(Whiteprint):
+
+    cfg_schema = {
+        'name': str,
+        schema.Optional('path'): str,
+        'targets': [str],
+    }
+    ...
+```
+
+The schema is enforced on execution of the whiteprint.
+
+For more info on expressing schemas (nesting, lists, optionals), see
+[schema](https://pypi.org/project/schema/).
+
 #### File Resolution
 
 Methods that upload local files (`scp_up()` and `scp_up_template()`) will

@@ -32,6 +32,7 @@ from marchitect.whiteprint import (
     RemoteTargetDirError,
     Whiteprint,
 )
+import schema
 
 
 def _mk_siteplan_from_env_var_ssh_creds(sp_cls: Type[SitePlan]) -> SitePlan:
@@ -81,6 +82,10 @@ class WhiteprintMissingRequiredCfg(Whiteprint):  # pylint: disable=W0223
     required_cfg = ['name']
 
 
+class WhiteprintBadCfgSchema(Whiteprint):  # pylint: disable=W0223
+    cfg_schema = {'name': str}
+
+
 class WhiteprintWriteTemp(Whiteprint):
 
     default_cfg = {
@@ -113,7 +118,7 @@ def random_data(size: int = 1024) -> str:
     return ''.join(random.choices(string.printable, k=size))
 
 
-def mk_random_temp_file(size: int = 1024) -> Tuple[str, str]:
+def mk_random_temp_file(size: int = 1024) -> Tuple[str, bytes]:
     """Returns (temp file path, temp file contents)."""
     path = temp_file_path()
     data = random_data(size).encode('ascii')
@@ -161,6 +166,13 @@ class TestBasic(unittest.TestCase):
         with self.assertRaises(KeyError) as ctx:
             WhiteprintMissingRequiredCfg(session)
         assert ctx.exception.args[0] == "Cfg 'name' must be set"
+
+    def test_whiteprint_bad_cfg_schema(self):
+        session = _mk_session_from_env_var_ssh_creds()
+
+        with self.assertRaises(schema.SchemaMissingKeyError) as ctx:
+            WhiteprintBadCfgSchema(session)
+        assert ctx.exception.args[0] == "Missing key: 'name'"
 
     def test_whiteprint_exec(self):
         wp = create_blank_whiteprint()
