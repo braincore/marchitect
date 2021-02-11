@@ -194,9 +194,6 @@ class Whiteprint:
 
     cfg_schema: Optional[Dict[str, Any]] = None
 
-    # Deprecated: Use cfg_schema
-    required_cfg: List[str] = []
-
     prefabs: List['Prefab'] = []
 
     def __init__(
@@ -216,10 +213,6 @@ class Whiteprint:
             self.cfg.update(site_cfg)
         self.rsrc_path = rsrc_path
         assert self.rsrc_path is None or self.rsrc_path.exists()
-
-        for required_key in self.required_cfg:
-            if required_key not in self.cfg:
-                raise KeyError('Cfg {!r} must be set'.format(required_key))
 
         if self.cfg_schema:
             self.cfg = schema.Schema(

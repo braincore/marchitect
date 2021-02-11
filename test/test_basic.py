@@ -79,10 +79,6 @@ class WhiteprintSimple(Whiteprint):
         return None
 
 
-class WhiteprintMissingRequiredCfg(Whiteprint):  # pylint: disable=W0223
-    required_cfg = ['name']
-
-
 class WhiteprintBadCfgSchema(Whiteprint):  # pylint: disable=W0223
     cfg_schema = {'name': str}
 
@@ -161,12 +157,6 @@ class TestBasic(unittest.TestCase):
         assert a['b']['c'] == 5
         assert a['b']['e'] == 7
         assert a['z'] == 100
-
-    def test_whiteprint_missing_required_cfg(self):
-        session = _mk_session_from_env_var_ssh_creds()
-        with self.assertRaises(KeyError) as ctx:
-            WhiteprintMissingRequiredCfg(session)
-        assert ctx.exception.args[0] == "Cfg 'name' must be set"
 
     def test_whiteprint_bad_cfg_schema(self):
         session = _mk_session_from_env_var_ssh_creds()
