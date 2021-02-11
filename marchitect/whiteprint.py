@@ -1,7 +1,6 @@
 import copy
 from pathlib import Path
 import select
-import schema
 from typing import (
     Any,
     Callable,
@@ -14,6 +13,7 @@ from typing import (
 )
 
 import jinja2
+import schema  # type: ignore
 # Hacks for mypy (ssh2 has no types)
 import ssh2.exceptions  # type: ignore  # pylint: disable=W0611
 import ssh2.session  # type: ignore  # pylint: disable=W0611
@@ -264,11 +264,11 @@ class Whiteprint:
                     # Sanity check
                     assert chan.read_stderr()[0] == 0
 
-            res = chan.wait_eof()
-            if res == LIBSSH2_ERROR_EAGAIN:
+            res_eof = chan.wait_eof()
+            if res_eof == LIBSSH2_ERROR_EAGAIN:
                 # Process still running
                 continue
-            elif res == 0:
+            elif res_eof == 0:
                 if not stdout_done:
                     size, data = chan.read()
                     while size > 0:
