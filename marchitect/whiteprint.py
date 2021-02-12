@@ -600,7 +600,7 @@ class Whiteprint:
         """
         Execute another whiteprint from this whiteprint.
         """
-        wp = whiteprint_cls(self.session, cfg)
+        wp = whiteprint_cls(self.session, cfg, self.rsrc_path)
         wp.execute(mode)
 
     def use_validate(
@@ -615,7 +615,7 @@ class Whiteprint:
         Raises:
             - ValidationError: If validation failed.
         """
-        wp = whiteprint_cls(self.session, cfg)
+        wp = whiteprint_cls(self.session, cfg, self.rsrc_path)
         err = wp.validate(mode)
         if err:
             raise ValidationError(err)

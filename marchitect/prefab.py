@@ -7,7 +7,7 @@ from typing import (
 
 import schema  # type: ignore
 
-from .whiteprint import Whiteprint
+from .whiteprint import Config, Prefab, Whiteprint
 
 
 class Apt(Whiteprint):
@@ -159,6 +159,144 @@ class Folder(Whiteprint):
                 return None
         else:
             return None
+
+
+class FileFromString(Whiteprint):
+    """
+    Creates a file from a template represented as a string.
+    """
+
+    cfg_schema = {
+        "contents": str,
+        schema.Optional("cfg"): object,
+        "dest_path": str,
+        schema.Optional("owner"): str,
+        schema.Optional("group"): str,
+        schema.Optional("mode"): int,
+        "remove_on_clean": bool,
+    }
+
+    default_cfg = {
+        "remove_on_clean": True,
+    }
+
+    @classmethod
+    def _compute_prefabs_tail(cls, cfg: Config) -> List[Prefab]:
+        prefab_cfg = {"path": cfg["dest_path"]}
+        if cfg.get("owner"):
+            prefab_cfg["owner"] = cfg["owner"]
+        if cfg.get("group"):
+            prefab_cfg["group"] = cfg["group"]
+        if cfg.get("mode"):
+            prefab_cfg["mode"] = cfg["mode"]
+        return [Prefab(FileExistsValidator, prefab_cfg)]
+
+    def _execute(self, mode: str) -> None:
+        quoted_path = shlex.quote(self.cfg["dest_path"])
+        if mode in {"install", "update"}:
+            self.scp_up_template_from_str(
+                self.cfg["contents"],
+                self.cfg["dest_path"],
+                self.cfg.get("mode", 0o664),
+                self.cfg.get("cfg"),
+            )
+            if self.cfg.get("owner") is not None:
+                self.exec("chown {} {}".format(self.cfg["owner"], quoted_path))
+            if self.cfg.get("group") is not None:
+                self.exec("chgrp {} {}".format(self.cfg["group"], quoted_path))
+        elif mode == "clean":
+            if self.cfg["remove_on_clean"]:
+                self.exec("rm -rf {}".format(quoted_path))
+
+    def _validate(self, mode: str) -> Optional[str]:
+        return None
+
+
+class FileFromPath(Whiteprint):
+    """
+    Creates a file from a local resource template.
+    """
+
+    cfg_schema = {
+        "src_path": str,
+        schema.Optional("cfg"): object,
+        "dest_path": str,
+        schema.Optional("owner"): str,
+        schema.Optional("group"): str,
+        schema.Optional("mode"): int,
+        "remove_on_clean": bool,
+    }
+
+    default_cfg = {
+        "remove_on_clean": True,
+    }
+
+    @classmethod
+    def _compute_prefabs_tail(cls, cfg: Config) -> List[Prefab]:
+        prefab_cfg = {"path": cfg["dest_path"]}
+        if cfg.get("owner"):
+            prefab_cfg["owner"] = cfg["owner"]
+        if cfg.get("group"):
+            prefab_cfg["group"] = cfg["group"]
+        if cfg.get("mode"):
+            prefab_cfg["mode"] = cfg["mode"]
+        return [Prefab(FileExistsValidator, prefab_cfg)]
+
+    def _execute(self, mode: str) -> None:
+        quoted_path = shlex.quote(self.cfg["dest_path"])
+        if mode in {"install", "update"}:
+            self.scp_up_template(
+                self.cfg["src_path"],
+                self.cfg["dest_path"],
+                self.cfg.get("mode"),
+                self.cfg.get("cfg"),
+            )
+            if self.cfg.get("owner") is not None:
+                self.exec("chown {} {}".format(self.cfg["owner"], quoted_path))
+            if self.cfg.get("group") is not None:
+                self.exec("chgrp {} {}".format(self.cfg["group"], quoted_path))
+        elif mode == "clean":
+            if self.cfg["remove_on_clean"]:
+                self.exec("rm -rf {}".format(quoted_path))
+
+    def _validate(self, mode: str) -> Optional[str]:
+        return None
+
+
+class Symlink(Whiteprint):
+    """
+    Creates a symlink.
+    """
+
+    cfg_schema = {
+        "src_path": str,
+        "dest_path": str,
+        "remove_on_clean": bool,
+    }
+
+    default_cfg = {
+        "remove_on_clean": True,
+    }
+
+    def _execute(self, mode: str) -> None:
+        src_path = shlex.quote(self.cfg["src_path"])
+        dest_path = shlex.quote(self.cfg["dest_path"])
+        if mode in {"install", "update"}:
+            self.exec(f"ln -sf {src_path} {dest_path}")
+        elif mode == "clean":
+            if self.cfg["remove_on_clean"]:
+                self.exec(f"rm -rf {dest_path}")
+
+    def _validate(self, mode: str) -> Optional[str]:
+        dest_path = shlex.quote(self.cfg["dest_path"])
+        if mode == "install":
+            res = self.exec(f'stat -c "%F" {dest_path}', error_ok=True)
+            if res.exit_status == 1:
+                return f"{dest_path} does not exist."
+            file_type = res.stdout.decode("utf-8").strip()
+            if file_type != "symbolic link":
+                return f"{dest_path} is not a symbolic link."
+        return None
 
 
 class LineInFile(Whiteprint):

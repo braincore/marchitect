@@ -296,8 +296,11 @@ These make it easy to add common functionality with the `_execute()` and
 
 * `Apt`: Common Linux package manager.
 * `Pip3`: Python package manager.
-* `Folder`: Ensures a folder exists at the specified path.
+* `Folder`: Makes a folder exists at the specified path.
 * `LineInFile`: Ensures the specified line exists in the specified file.
+* `FileFromString`: Makes a file at a specified path.
+* `FileFromPath`: Makes a file at a specified path.
+* `Symlink`: Makes a symlink.
 * `FileExistsValidator`: Only validates that a file exists at a specified path.
 
 An example:
@@ -387,10 +390,11 @@ mock the interfaces for `ssh2-python`.
 `mypy` and `lint` are also supported: `tox -e mypy,lint`
 
 ## TODO
-* [] Add "common" dependencies to minimize invocations of commands like
+* [ ] Add "common" dependencies to minimize invocations of commands like
   `apt update` to once per site plan.
-* [] Write a log of applied site plans and whiteprints to the target host
+* [ ] Write a log of applied site plans and whiteprints to the target host
   for easy debugging.
-* [] Add documentation for `validate()` method.
-* [] Verify speed wins by using `ssh2-python` instead of `paramiko`.
-* [] Document `SitePlan.one_off_exec()`.
+* [ ] Add documentation for `validate()` method.
+* [ ] Verify speed wins by using `ssh2-python` instead of `paramiko`.
+* [ ] Document `SitePlan.one_off_exec()`.
+* [ ] File prefabs can use md5sum to decide whether to re-create file.
