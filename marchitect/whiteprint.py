@@ -2,7 +2,6 @@ import copy
 from pathlib import Path
 import select
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -35,9 +34,8 @@ from ssh2.session import (  # pylint: disable=E0611
 
 from .util import dict_deep_update
 
-# Hack to avoid circular imports for mypy
-if TYPE_CHECKING:
-    from .prefab import Prefab
+
+Config = Dict[str, Any]
 
 
 class ExecOutput:
@@ -191,16 +189,18 @@ class Whiteprint:
     # whiteprint by the siteplan.
     name: Optional[str] = None
 
-    default_cfg: Dict[str, Any] = {}
+    default_cfg: Config = {}
 
-    cfg_schema: Optional[Dict[str, Any]] = None
+    cfg_schema: Optional[Config] = None
 
-    prefabs: List["Prefab"] = []
+    prefabs_head: List["Prefab"] = []
+
+    prefabs_tail: List["Prefab"] = []
 
     def __init__(
         self,
         session: Session,
-        site_cfg: Optional[Dict[str, Any]] = None,
+        site_cfg: Optional[Config] = None,
         rsrc_path: Optional[Path] = None,
     ) -> None:
         """
@@ -212,7 +212,7 @@ class Whiteprint:
         """
         assert session.get_blocking() is False
         self.session = session
-        self.cfg: Dict[str, Any] = copy.deepcopy(self.default_cfg)
+        self.cfg: Config = copy.deepcopy(self.default_cfg)
         if site_cfg is not None:
             self.cfg.update(site_cfg)
         self.rsrc_path = rsrc_path
@@ -223,13 +223,22 @@ class Whiteprint:
                 {**self.cfg_schema, **_target_host_cfg_schema}
             ).validate(self.cfg)
 
-        computed_prefabs = self._compute_prefabs(self.cfg)
-        if computed_prefabs:
-            self.prefabs = self.prefabs[:] + computed_prefabs
+        computed_prefabs_head = self._compute_prefabs_head(self.cfg)
+        if computed_prefabs_head:
+            self.prefabs_head = self.prefabs_head[:] + computed_prefabs_head
+        computed_prefabs_tail = self._compute_prefabs_tail(self.cfg)
+        if computed_prefabs_tail:
+            self.prefabs_tail = self.prefabs_tail[:] + computed_prefabs_tail
 
     @classmethod
-    def _compute_prefabs(
-        cls, cfg: Dict[str, Any]  # pylint: disable=W0613
+    def _compute_prefabs_head(
+        cls, cfg: Config  # pylint: disable=W0613
+    ) -> List["Prefab"]:
+        return []
+
+    @classmethod
+    def _compute_prefabs_tail(
+        cls, cfg: Config  # pylint: disable=W0613
     ) -> List["Prefab"]:
         return []
 
@@ -482,7 +491,7 @@ class Whiteprint:
                 data += chunk
                 expected_size -= size
 
-    def _resolve_cfg(self, cfg_override: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    def _resolve_cfg(self, cfg_override: Optional[Config]) -> Config:
         if cfg_override is not None:
             cfg = copy.deepcopy(self.cfg)
             dict_deep_update(cfg, cfg_override)
@@ -495,7 +504,7 @@ class Whiteprint:
         src_path: str,
         dest_path: str,
         mode: Optional[int] = None,
-        cfg_override: Optional[Dict[str, Any]] = None,
+        cfg_override: Optional[Config] = None,
     ) -> None:
         """
         Args:
@@ -513,7 +522,7 @@ class Whiteprint:
 
         with src_path_obj.open() as f:
             template_contents = f.read()
-        template = jinja2.Template(template_contents)
+        template = jinja2.Template(template_contents, undefined=MostlyStrictUndefined)
         rendered_template = template.render(cfg).encode("utf-8")
         self.scp_up_from_bytes(rendered_template, dest_path, mode)
 
@@ -522,15 +531,20 @@ class Whiteprint:
         template_contents: str,
         dest_path: str,
         mode: int = 0o664,
-        cfg_override: Optional[Dict[str, Any]] = None,
+        cfg_override: Optional[Config] = None,
     ) -> None:
         cfg = self._resolve_cfg(cfg_override)
-        template = jinja2.Template(template_contents)
+        template = jinja2.Template(template_contents, undefined=MostlyStrictUndefined)
         rendered_template = template.render(cfg).encode("utf-8")
         self.scp_up_from_bytes(rendered_template, dest_path, mode)
 
+    @staticmethod
+    def render_template(template_contents: str, cfg: Config) -> str:
+        template = jinja2.Template(template_contents, undefined=MostlyStrictUndefined)
+        return template.render(cfg)
+
     def execute(self, mode: str) -> None:
-        for prefab in self.prefabs:
+        for prefab in self.prefabs_head:
             try:
                 self.use_execute(mode, prefab.whiteprint_cls, prefab.cfg)
             except NotImplementedError:
@@ -539,6 +553,11 @@ class Whiteprint:
             self._execute(mode)
         except NotImplementedError:
             pass
+        for prefab in self.prefabs_tail:
+            try:
+                self.use_execute(mode, prefab.whiteprint_cls, prefab.cfg)
+            except NotImplementedError:
+                pass
 
     def _execute(self, mode: str) -> None:
         """
@@ -550,15 +569,24 @@ class Whiteprint:
         raise NotImplementedError
 
     def validate(self, mode: str) -> Optional[str]:
-        for prefab in self.prefabs:
+        for prefab in self.prefabs_head:
             try:
                 self.use_validate(mode, prefab.whiteprint_cls, prefab.cfg)
             except NotImplementedError:
                 continue
         try:
-            return self._validate(mode)
+            err = self._validate(mode)
         except NotImplementedError:
-            return None
+            pass
+        else:
+            if err:
+                return err
+        for prefab in self.prefabs_tail:
+            try:
+                self.use_validate(mode, prefab.whiteprint_cls, prefab.cfg)
+            except NotImplementedError:
+                continue
+        return None
 
     def _validate(self, mode: str) -> Optional[str]:
         raise NotImplementedError
@@ -567,7 +595,7 @@ class Whiteprint:
         self,
         mode: str,
         whiteprint_cls: Type["Whiteprint"],
-        cfg: Optional[Dict[str, Any]] = None,
+        cfg: Optional[Config] = None,
     ) -> None:
         """
         Execute another whiteprint from this whiteprint.
@@ -579,7 +607,7 @@ class Whiteprint:
         self,
         mode: str,
         whiteprint_cls: Type["Whiteprint"],
-        cfg: Optional[Dict[str, Any]] = None,
+        cfg: Optional[Config] = None,
     ) -> None:
         """
         Run validation of another whiteprint from this whiteprint.
@@ -591,3 +619,39 @@ class Whiteprint:
         err = wp.validate(mode)
         if err:
             raise ValidationError(err)
+
+
+class MostlyStrictUndefined(jinja2.Undefined):
+    """Just like jinja2's built-in except __bool__ is allowed.
+
+    This allows templates to check whether a variable is defined (also
+    conflated with truthy) without raising an error. However, all other uses
+    of an undefined will raise an error.
+    """
+
+    __slots__ = ()
+    # Alright black... whatever you say.
+    __iter__ = (
+        __str__
+    ) = (
+        __len__
+    ) = (
+        __nonzero__
+    ) = (
+        __eq__
+    ) = __ne__ = __hash__ = jinja2.Undefined._fail_with_undefined_error  # type:ignore
+
+
+class Prefab:
+    """
+    Intended to provide declarative deployment specifications.
+
+    Requirements:
+    - A whiteprint that implements execute & validate for default modes:
+        install, update, start, stop
+    - A whiteprint that's idempotent: can be reliably retried on failure.
+    """
+
+    def __init__(self, whiteprint_cls: Type[Whiteprint], cfg: Optional[Config] = None):
+        self.whiteprint_cls = whiteprint_cls
+        self.cfg = cfg

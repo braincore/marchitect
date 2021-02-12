@@ -298,16 +298,17 @@ These make it easy to add common functionality with the `_execute()` and
 * `Pip3`: Python package manager.
 * `FolderExists`: Ensures a folder exists at the specified path.
 * `LineInFile`: Ensures the specified line exists in the specified file.
+* `FileExistsValidator`: Only validates that a file exists at a specified path.
 
 An example:
 
 ```python
-from marchitect.prefab import Apt, Prefab
-from marchitect.whiteprint import Whiteprint
+from marchitect.prefab import Apt
+from marchitect.whiteprint import Prefab, Whiteprint
 
 class HelloWorld2Whiteprint(Whiteprint):
 
-    prefabs = [
+    prefabs_head = [
         Prefab(Apt, {'packages': ['curl']}),
     ]
 
@@ -316,15 +317,16 @@ class HelloWorld2Whiteprint(Whiteprint):
             self.exec('curl https://www.nytimes.com > /tmp/nytimes')
 ```
 
-Prefabs are executed before your `_execute()` method.
+`prefabs_head` are applied before your `_execute()` and `_validate()` methods,
+respectively. Alternatively, `prefabs_tail` are applied after.
 
-If a prefab depends on a config variable, define a `_compute_prefabs()` class
-method:
+If a prefab depends on a config variable, define a `_compute_prefabs_head()`
+class method:
 
 ```python
 from typing import Any, Dict, List
-from marchitect.prefab import FolderExists, Prefab
-from marchitect.whiteprint import Whiteprint
+from marchitect.prefab import FolderExists
+from marchitect.whiteprint import Prefab, Whiteprint
 
 class ExampleWhiteprint(Whiteprint):
 
@@ -333,12 +335,12 @@ class ExampleWhiteprint(Whiteprint):
     }
 
     @classmethod
-    def _compute_prefabs(cls, cfg: Dict[str, Any]) -> List[Prefab]:
+    def _compute_prefabs_head(cls, cfg: Dict[str, Any]) -> List[Prefab]:
         return [Prefab(FolderExists, {'path': cfg['temp_folder']})]
 ```
 
-The prefabs returned by`_compute_prefabs()` will be executed after those
-specified in the `prefabs` class variable.
+The prefabs returned by`_compute_prefabs_head()` will be applied after those
+specified directly in the `prefabs_head` class variable.
 
 #### Nested Whiteprints
 

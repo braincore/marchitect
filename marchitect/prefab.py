@@ -1,32 +1,13 @@
 import shlex
 from typing import (
-    Any,
     Dict,
     List,
     Optional,
-    Type,
 )
 
 import schema  # type: ignore
 
 from .whiteprint import Whiteprint
-
-
-class Prefab:
-    """
-    Intended to provide declarative deployment specifications.
-
-    Requirements:
-    - Whiteprints implement execute & validate for default modes:
-        install, update, start, stop
-    - Idempotent (failures can always be retried)
-    """
-
-    def __init__(
-        self, whiteprint_cls: Type[Whiteprint], cfg: Optional[Dict[str, Any]] = None
-    ):
-        self.whiteprint_cls = whiteprint_cls
-        self.cfg = cfg
 
 
 class Apt(Whiteprint):
@@ -237,5 +218,61 @@ class LineInFile(Whiteprint):
                 )
             else:
                 return "Unknown exit status from grep: {}".format(res.exit_status)
+        else:
+            return None
+
+
+class FileExistsValidator(Whiteprint):
+
+    cfg_schema = {
+        "path": str,
+        schema.Optional("owner"): str,
+        schema.Optional("group"): str,
+        schema.Optional("mode"): int,
+    }
+
+    def _execute(self, mode: str) -> None:
+        return None
+
+    def _validate(self, mode: str) -> Optional[str]:
+        quoted_path = shlex.quote(self.cfg["path"])
+        if mode in "install":
+            res = self.exec(
+                'stat -c "%F %U %G %a" {!r}'.format(quoted_path), error_ok=True
+            )
+            if res.exit_status == 1:
+                return "%r does not exist." % quoted_path
+            # Use rsplit because %F can return "directory" or a multi-word like
+            # "regular empty file"
+            file_type, owner, group, file_mode_raw = (
+                res.stdout.decode("utf-8").strip().rsplit(maxsplit=3)
+            )
+            file_mode = int(file_mode_raw, base=8)
+            if file_type != "regular file":
+                return "%r is not a file." % quoted_path
+            elif self.cfg.get("owner") is not None and owner != self.cfg["owner"]:
+                return "expected %r to have owner %r, got %r" % (
+                    quoted_path,
+                    self.cfg["owner"],
+                    owner,
+                )
+            elif self.cfg.get("group") is not None and group != self.cfg["group"]:
+                return "expected %r to have group %r, got %r" % (
+                    quoted_path,
+                    self.cfg["group"],
+                    group,
+                )
+            elif self.cfg.get("mode") is not None and file_mode != self.cfg["mode"]:
+                return "expected {!r} to have mode {:o}, got {:o}.".format(
+                    quoted_path, self.cfg["mode"], file_mode
+                )
+            else:
+                return None
+        elif mode == "clean":
+            res = self.exec("stat {!r}".format(quoted_path), error_ok=True)
+            if res.exit_status != 1:
+                return "expected %r to not exist." % quoted_path
+            else:
+                return None
         else:
             return None
