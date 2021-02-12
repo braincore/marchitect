@@ -12,7 +12,7 @@ setup(
     author="Ken Elkabany",
     author_email="ken@elkabany.com",
     license="MIT",
-    url="https://www.github.com/kelkabany/marchitect",
+    url="https://www.github.com/braincore/marchitect",
     packages=["marchitect"],
     package_data={"marchitect": ["py.typed"]},
     zip_safe=False,
