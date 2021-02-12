@@ -296,7 +296,7 @@ These make it easy to add common functionality with the `_execute()` and
 
 * `Apt`: Common Linux package manager.
 * `Pip3`: Python package manager.
-* `FolderExists`: Ensures a folder exists at the specified path.
+* `Folder`: Ensures a folder exists at the specified path.
 * `LineInFile`: Ensures the specified line exists in the specified file.
 * `FileExistsValidator`: Only validates that a file exists at a specified path.
 
@@ -325,7 +325,7 @@ class method:
 
 ```python
 from typing import Any, Dict, List
-from marchitect.prefab import FolderExists
+from marchitect.prefab import Folder
 from marchitect.whiteprint import Prefab, Whiteprint
 
 class ExampleWhiteprint(Whiteprint):
@@ -336,7 +336,7 @@ class ExampleWhiteprint(Whiteprint):
 
     @classmethod
     def _compute_prefabs_head(cls, cfg: Dict[str, Any]) -> List[Prefab]:
-        return [Prefab(FolderExists, {'path': cfg['temp_folder']})]
+        return [Prefab(Folder, {'path': cfg['temp_folder']})]
 ```
 
 The prefabs returned by`_compute_prefabs_head()` will be applied after those

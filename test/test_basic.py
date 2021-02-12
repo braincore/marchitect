@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 from ssh2.session import Session  # pylint: disable=E0611
 
-from marchitect.prefab import Apt, FolderExists, LineInFile, Pip3
+from marchitect.prefab import Apt, Folder, LineInFile, Pip3
 from marchitect.site_plan import (
     Step,
     SitePlan,
@@ -547,7 +547,7 @@ class TestBasic(unittest.TestCase):
 
         class WhiteprintPrefab(Whiteprint):
             prefabs_head = [
-                Prefab(FolderExists, {"path": path}),
+                Prefab(Folder, {"path": path}),
             ]
 
             def _execute(self, mode: str):
@@ -621,12 +621,12 @@ class TestBasic(unittest.TestCase):
 
         class WhiteprintPrefab(Whiteprint):
             prefabs_head = [
-                Prefab(FolderExists, {"path": path1}),
+                Prefab(Folder, {"path": path1}),
             ]
 
             @classmethod
             def _compute_prefabs_head(cls, cfg: Dict[str, Any]):
-                return [Prefab(FolderExists, {"path": cfg["path"]})]
+                return [Prefab(Folder, {"path": cfg["path"]})]
 
             def _execute(self, mode: str):
                 pass
@@ -709,12 +709,12 @@ class TestBasic(unittest.TestCase):
 
         class WhiteprintPrefab(Whiteprint):
             prefabs_head = [
-                Prefab(FolderExists, {"path": path1}),
+                Prefab(Folder, {"path": path1}),
             ]
 
             @classmethod
             def _compute_prefabs_head(cls, cfg: Dict[str, Any]):
-                return [Prefab(FolderExists, {"path": cfg["path"]})]
+                return [Prefab(Folder, {"path": cfg["path"]})]
 
             def _execute(self, mode: str):
                 pass

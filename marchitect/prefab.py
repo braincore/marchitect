@@ -85,7 +85,7 @@ class Pip3(Whiteprint):
             return None
 
 
-class FolderExists(Whiteprint):
+class Folder(Whiteprint):
 
     cfg_schema = {
         "path": str,
