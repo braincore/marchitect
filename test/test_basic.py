@@ -346,15 +346,11 @@ class TestBasic(unittest.TestCase):
         wp.execute("--random--")
 
     def test_siteplan(self):
-        import packaging.version
-
         class WhiteprintAssertTargetCfg(Whiteprint):
             def _execute(self, mode: str):
                 assert isinstance(self.cfg["_target"], dict)
                 assert isinstance(self.cfg["_target"]["distro"], str)
-                assert isinstance(
-                    self.cfg["_target"]["distro_version"], packaging.version.Version
-                )
+                assert isinstance(self.cfg["_target"]["distro_version"], str)
                 assert isinstance(self.cfg["_target"]["hostname"], str)
                 assert isinstance(self.cfg["_target"]["fqdn"], str)
                 assert isinstance(self.cfg["_target"]["cpu_count"], int)

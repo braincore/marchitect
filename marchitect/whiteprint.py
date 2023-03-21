@@ -157,15 +157,13 @@ class ValidationError(WhiteprintError):
         return self.msg
 
 
-import packaging.version
-
 _target_host_cfg_schema = {
     schema.Optional("_target"): {
         "user": str,
         "host": str,
         "kernel": str,
         "distro": str,
-        "distro_version": packaging.version.Version,
+        "distro_version": str,
         "hostname": str,
         "fqdn": str,
         "cpu_count": int,

@@ -1,6 +1,5 @@
 import copy
 import logging
-import packaging.version
 from pathlib import Path
 import socket
 from typing import (
@@ -174,7 +173,7 @@ class SitePlan:
             host=self.hostname,
             kernel=vals[0],
             distro=vals[1].lower(),
-            distro_version=packaging.version.parse(vals[2]),
+            distro_version=vals[2],
             hostname=vals[3],
             fqdn=vals[4],
             cpu_count=int(vals[5]),
