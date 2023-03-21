@@ -3,7 +3,6 @@ from marchitect.whiteprint import Whiteprint
 
 
 class HttpieWhiteprint(Whiteprint):
-
     name = "httpie"  # See `file resolution`
 
     def _execute(self, mode: str) -> None:

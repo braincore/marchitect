@@ -1,37 +1,41 @@
-[tool.poetry]
+[tool.pdm]
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest>=7.2.2",
+    "tox-pdm>=0.6.1",
+    "black>=23.1.0",
+    "mypy>=1.1.1",
+    "pylint>=2.17.0",
+]
+[tool.pdm.scripts]
+format = "black ."
+lint = "pylint --rcfile=.pylintrc marchitect test"
+mypy = "mypy --strict marchitect"
+test = "py.test"
+
+[tool.pdm.build]
+includes = []
+[build-system]
+requires = ["pdm-pep517>=1.0.0", "Cython"]
+build-backend = "pdm.pep517.api"
+
+
+[project]
 name = "marchitect"
 version = "0.6"
 description = "Machine architect for software deployment."
-authors = ["Ken Elkabany <ken@elkabany.com>"]
-license = "MIT"
-readme = "README.md"
-repository = "https://www.github.com/braincore/marchitect"
-classifiers = [
-    "Development Status :: 5 - Production/Stable",
-    "Intended Audience :: Developers",
-    "Natural Language :: English",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.6",
-    "Programming Language :: Python :: 3.7",
-    "Topic :: System :: Installation/Setup",
-    "Topic :: System :: Systems Administration",
+authors = [
+    {name = "Ken Elkabany", email = "ken@elkabany.com"},
 ]
+dependencies = [
+    "jinja2>=2.10",
+    "schema>=0.7.0",
+    "ssh2-python>=1.0.0",
+]
+requires-python = ">=3.7.2,<4.0"
+readme = "README.md"
+license = {text = "MIT"}
+classifiers = ["Development Status :: 5 - Production/Stable", "Intended Audience :: Developers", "Natural Language :: English", "License :: OSI Approved :: MIT License", "Operating System :: POSIX :: Linux", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.6", "Programming Language :: Python :: 3.7", "Topic :: System :: Installation/Setup", "Topic :: System :: Systems Administration"]
 
-[tool.poetry.dependencies]
-python = "^3.6"
-jinja2 = "^2.10"
-ssh2-python = "^0.17.0"
-schema = "0.7.0"
-
-[tool.poetry.dev-dependencies]
-pytest = "^6.1.2"
-tox = "^3.20.1"
-black = "^20.8b1"
-mypy = "^0.800"
-pylint = "^2.6.0"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+[project.urls]
+repository = "https://www.github.com/braincore/marchitect"

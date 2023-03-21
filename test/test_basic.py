@@ -85,7 +85,6 @@ class WhiteprintBadCfgSchema(Whiteprint):  # pylint: disable=W0223
 
 
 class WhiteprintWriteTemp(Whiteprint):
-
     default_cfg = {
         "value": "alice",
     }
@@ -301,7 +300,7 @@ class TestBasic(unittest.TestCase):
         wp = create_blank_whiteprint()
 
         src_temp_path = temp_file_path()
-        with open(src_temp_path, "w") as f:
+        with open(src_temp_path, "w", encoding="utf8") as f:
             f.write("{{ name }}")
 
         wp.cfg["name"] = "Alice"
@@ -347,13 +346,15 @@ class TestBasic(unittest.TestCase):
         wp.execute("--random--")
 
     def test_siteplan(self):
-        from distutils.version import LooseVersion
+        import packaging.version
 
         class WhiteprintAssertTargetCfg(Whiteprint):
             def _execute(self, mode: str):
                 assert isinstance(self.cfg["_target"], dict)
                 assert isinstance(self.cfg["_target"]["distro"], str)
-                assert isinstance(self.cfg["_target"]["distro_version"], LooseVersion)
+                assert isinstance(
+                    self.cfg["_target"]["distro_version"], packaging.version.Version
+                )
                 assert isinstance(self.cfg["_target"]["hostname"], str)
                 assert isinstance(self.cfg["_target"]["fqdn"], str)
                 assert isinstance(self.cfg["_target"]["cpu_count"], int)
@@ -594,7 +595,7 @@ class TestBasic(unittest.TestCase):
         assert res == "'{}' does not exist.".format(path)
 
         # Test file in place of directory
-        open(path, "w").close()
+        open(path, "w", encoding="utf8").close()
         res = sp.validate("install")
         assert res == "'%s' is not a directory." % path
         sp.execute("clean")
@@ -675,7 +676,7 @@ class TestBasic(unittest.TestCase):
 
         # Test write over non-existent file
         sp.execute("install")
-        with open(path) as f:
+        with open(path, encoding="utf8") as f:
             assert f.read() == contents + "\n"
         sp.validate("install")
 
@@ -686,20 +687,20 @@ class TestBasic(unittest.TestCase):
 
         # Test with existing content
         dummy_line = '\'test line"""'
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf8") as f:
             f.write(dummy_line)
             f.write("\n")
         sp.validate("clean")
 
         # Test append to existing file
         sp.execute("install")
-        with open(path) as f:
+        with open(path, encoding="utf8") as f:
             assert f.read() == dummy_line + "\n" + contents + "\n"
 
         # Test proper removal of single line
         sp.clean()
         sp.validate("clean")
-        with open(path) as f:
+        with open(path, encoding="utf8") as f:
             assert f.read() == dummy_line + "\n"
         os.remove(path)
 

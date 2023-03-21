@@ -3,7 +3,6 @@ from marchitect.whiteprint import Whiteprint
 
 
 class HelloWorldWhiteprint(Whiteprint):
-
     name = "hello_world"
 
     def _execute(self, mode: str) -> None:

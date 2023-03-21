@@ -157,7 +157,7 @@ class ValidationError(WhiteprintError):
         return self.msg
 
 
-from distutils.version import LooseVersion
+import packaging.version
 
 _target_host_cfg_schema = {
     schema.Optional("_target"): {
@@ -165,7 +165,7 @@ _target_host_cfg_schema = {
         "host": str,
         "kernel": str,
         "distro": str,
-        "distro_version": LooseVersion,
+        "distro_version": packaging.version.Version,
         "hostname": str,
         "fqdn": str,
         "cpu_count": int,
@@ -520,7 +520,7 @@ class Whiteprint:
             fileinfo = src_path_obj.stat()
             mode = fileinfo.st_mode
 
-        with src_path_obj.open() as f:
+        with src_path_obj.open(encoding="utf8") as f:
             template_contents = f.read()
         template = jinja2.Template(template_contents, undefined=MostlyStrictUndefined)
         rendered_template = template.render(cfg).encode("utf-8")
@@ -639,7 +639,11 @@ class MostlyStrictUndefined(jinja2.Undefined):
         __nonzero__
     ) = (
         __eq__
-    ) = __ne__ = __hash__ = jinja2.Undefined._fail_with_undefined_error  # type:ignore
+    ) = (
+        __ne__
+    ) = (
+        __hash__
+    ) = jinja2.Undefined._fail_with_undefined_error  # pylint:disable=protected-access
 
 
 class Prefab:

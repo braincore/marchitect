@@ -11,7 +11,6 @@ from .whiteprint import Config, Prefab, Whiteprint
 
 
 class Apt(Whiteprint):
-
     cfg_schema = {
         "packages": [schema.And(str, schema.Use(str.lower))],
     }
@@ -39,7 +38,6 @@ class Apt(Whiteprint):
 
 
 class Pip3(Whiteprint):
-
     cfg_schema = {
         # Pin version using '==X.Y.Z' notation.
         "packages": [schema.And(str, schema.Use(str.lower))],
@@ -86,7 +84,6 @@ class Pip3(Whiteprint):
 
 
 class Folder(Whiteprint):
-
     cfg_schema = {
         "path": str,
         schema.Optional("owner"): str,
@@ -300,7 +297,6 @@ class Symlink(Whiteprint):
 
 
 class LineInFile(Whiteprint):
-
     cfg_schema = {
         "path": str,
         "line": schema.And(
@@ -361,7 +357,6 @@ class LineInFile(Whiteprint):
 
 
 class FileExistsValidator(Whiteprint):
-
     cfg_schema = {
         "path": str,
         schema.Optional("owner"): str,
