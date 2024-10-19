@@ -22,7 +22,7 @@ build-backend = "pdm.pep517.api"
 
 [project]
 name = "marchitect"
-version = "0.8"
+version = "0.9"
 description = "Machine architect for software deployment."
 authors = [
     {name = "Ken Elkabany", email = "ken@elkabany.com"},
