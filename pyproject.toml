@@ -30,9 +30,9 @@ authors = [
 dependencies = [
     "jinja2>=2.10",
     "schema>=0.7.0",
-    "ssh2-python>=1.0.0",
+    "ssh2-python312>=0.1.1",
 ]
-requires-python = ">=3.7.2,<4.0"
+requires-python = ">=3.9,<4.0"
 readme = "README.md"
 license = {text = "MIT"}
 classifiers = ["Development Status :: 5 - Production/Stable", "Intended Audience :: Developers", "Natural Language :: English", "License :: OSI Approved :: MIT License", "Operating System :: POSIX :: Linux", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.6", "Programming Language :: Python :: 3.7", "Topic :: System :: Installation/Setup", "Topic :: System :: Systems Administration"]
