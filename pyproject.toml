@@ -30,7 +30,7 @@ authors = [
 dependencies = [
     "jinja2>=2.10",
     "schema>=0.7.0",
-    "ssh2-python312>=0.1.1",
+    "hussh>=0.1.7",
 ]
 requires-python = ">=3.9,<4.0"
 readme = "README.md"

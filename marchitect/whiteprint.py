@@ -16,21 +16,7 @@ from typing import (
 import jinja2
 import schema  # type: ignore
 
-# Hacks for mypy (ssh2 has no types)
-import ssh2.exceptions  # type: ignore  # pylint: disable=W0611
-import ssh2.session  # type: ignore  # pylint: disable=W0611
-from ssh2.channel import Channel  # type: ignore  # pylint: disable=E0611
-from ssh2.fileinfo import FileInfo  # type: ignore  # pylint: disable=E0611
-from ssh2.error_codes import LIBSSH2_ERROR_EAGAIN  # type: ignore  # pylint: disable=E0611
-from ssh2.exceptions import (  # pylint: disable=E0611
-    ChannelError,
-    SCPProtocolError,
-)
-from ssh2.session import (  # pylint: disable=E0611
-    LIBSSH2_SESSION_BLOCK_INBOUND,
-    LIBSSH2_SESSION_BLOCK_OUTBOUND,
-    Session,
-)
+from hussh import Connection  # type: ignore  # pylint: disable=E0611
 
 from .util import dict_deep_update
 
@@ -54,39 +40,7 @@ class ExecOutput:
         )
 
 
-def wait_session(session: Session, timeout: float = 1) -> Tuple[bool, bool]:
-    """
-    Waits for at most timeout seconds for data to be available for reading, or
-    for write pipe to available for writing.
-
-    Returns:
-        - Element 0: Whether there's data to read.
-        - Element 1: Whether write to stdin could progress (I think....)
-    """
-    directions = session.block_directions()
-    if directions == 0:
-        return False, False
-    read_fds = [session.sock] if (directions & LIBSSH2_SESSION_BLOCK_INBOUND) else []
-    write_fds = [session.sock] if (directions & LIBSSH2_SESSION_BLOCK_OUTBOUND) else []
-    res = select.select(read_fds, write_fds, (), timeout)
-    assert len(res[2]) == 0, "Unhandled exceptional fds"
-    return len(res[0]) > 0, len(res[1]) > 0
-
-
 T = TypeVar("T")
-
-
-def retry_eagain(f: Callable[..., T], *args: Any) -> T:
-    """
-    Helper to retry libssh2 functions if they return an EAGAIN error.
-
-    Args:
-        f: Function that requires no arguments to call.
-    """
-    ret = f(*args)
-    while ret == LIBSSH2_ERROR_EAGAIN:
-        ret = f(*args)
-    return ret
 
 
 class WhiteprintError(Exception):
@@ -99,7 +53,7 @@ class RemoteFileNotFoundError(WhiteprintError):
     Raised when downloading a file via SCP fails because it does not exist.
     """
 
-    def __init__(self, msg: str, inner: SCPProtocolError):
+    def __init__(self, msg: str, inner: Exception):  # FIXME
         super().__init__(msg, inner)
         self.msg = msg
         self.inner = inner
@@ -114,7 +68,7 @@ class RemoteTargetDirError(WhiteprintError):
     does not exist.
     """
 
-    def __init__(self, msg: str, inner: SCPProtocolError):
+    def __init__(self, msg: str, inner: Exception):  # FIXME
         super().__init__(msg, inner)
         self.msg = msg
         self.inner = inner
@@ -197,19 +151,17 @@ class Whiteprint:
 
     def __init__(
         self,
-        session: Session,
+        conn: Connection,
         site_cfg: Optional[Config] = None,
         rsrc_path: Optional[Path] = None,
     ) -> None:
         """
         Args:
-             session: Must be set to non-blocking mode. This class will not
-                close the session when finished, that's up to the caller.
+             conn: Responsibility of caller to close this.
              rsrc_path: Path to the location where relative-path specified
                 resources can be found.
         """
-        assert session.get_blocking() is False
-        self.session = session
+        self.conn = conn
         self.cfg: Config = copy.deepcopy(self.default_cfg)
         if site_cfg is not None:
             self.cfg.update(site_cfg)
@@ -241,100 +193,23 @@ class Whiteprint:
         return []
 
     def exec(
-        self, cmd: str, stdin: Optional[bytes] = None, error_ok: bool = False
+        self, cmd: str, error_ok: bool = False
     ) -> ExecOutput:
         """
         Executes cmd in a session channel.
 
-        This function collects std{out,err} in non-blocking mode to prevent
-        the std{out,err} pipes from becoming full and blocking further
-        execution of the cmd.
-
-        stdin pipe is explicitly closed after being written to.
-
         Args:
             cmd: Executed in the context of a shell.
-            stdin: Standard input to program.
             error_ok: If true, does not raise a RemoteExecError if exist status
                 is non-zero.
         """
-        chan = retry_eagain(self.session.open_session)
-        try:
-            retry_eagain(lambda: chan.execute(cmd))  # type: ignore
-        except ChannelError:  # pylint: disable=W0706
-            # TODO: Figure out what errors can arise.
-            raise
-        if stdin is not None:
-            chan.write(stdin)
-        chan.send_eof()
+        exec_res = self.conn.execute(cmd)
 
-        stdout = b""
-        stdout_done = False
-        stderr = b""
-        stderr_done = False
-        while True:
-            res = retry_eagain(lambda: wait_session(self.session, 0.1))
-            if res[0]:
-                if not stdout_done:
-                    size, data = chan.read()
-                    while size > 0:
-                        stdout += data
-                        size, data = chan.read()
-                    if size == 0:
-                        stdout_done = True
-                    elif size != LIBSSH2_ERROR_EAGAIN:
-                        assert False, "Unexpected can read error: %d" % size
-                else:
-                    # Sanity check
-                    assert chan.read()[0] == 0
-
-                if not stderr_done:
-                    size, data = chan.read_stderr()
-                    while size > 0:
-                        stderr += data
-                        size, data = chan.read_stderr()
-                    if size == 0:
-                        stderr_done = True
-                    elif size != LIBSSH2_ERROR_EAGAIN:
-                        assert False, "Unexpected can read error: %d" % size
-                else:
-                    # Sanity check
-                    assert chan.read_stderr()[0] == 0
-
-            res_eof = chan.wait_eof()
-            if res_eof == LIBSSH2_ERROR_EAGAIN:
-                # Process still running
-                continue
-            elif res_eof == 0:
-                if not stdout_done:
-                    size, data = chan.read()
-                    while size > 0:
-                        stdout += data
-                        size, data = chan.read()
-                    if size == 0:
-                        stdout_done = True
-                    else:
-                        assert False, "Unexpected final read error: %d" % size
-                if not stderr_done:
-                    size, data = chan.read_stderr()
-                    while size > 0:
-                        stderr += data
-                        size, data = chan.read_stderr()
-                    if size == 0:
-                        stderr_done = True
-                    else:
-                        assert False, "Unexpected final read error: %d" % size
-                assert stdout_done
-                assert stderr_done
-                # Need to wait for a successful close (0) to get the exit code.
-                assert retry_eagain(chan.close) == 0
-                exec_output = ExecOutput(chan.get_exit_status(), stdout, stderr)
-                if exec_output.exit_status != 0 and not error_ok:
-                    raise RemoteExecError(cmd, exec_output)
-                else:
-                    return exec_output
-            else:
-                assert False, "Unexpected wait_eof value: {}".format(res)
+        exec_output = ExecOutput(exec_res.status, exec_res.stdout, exec_res.stderr)
+        if exec_output.exit_status != 0 and not error_ok:
+            raise RemoteExecError(cmd, exec_output)
+        else:
+            return exec_output
 
     def _resolve_rsrc(self, raw_path: str) -> Path:
         raw_path_obj = Path(raw_path)

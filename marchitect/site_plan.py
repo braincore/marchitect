@@ -1,7 +1,6 @@
 import copy
 import logging
 from pathlib import Path
-import socket
 from typing import (
     Any,
     Callable,
@@ -12,7 +11,7 @@ from typing import (
     Union,
 )
 
-from ssh2.session import Session  # type: ignore  # pylint: disable=E0611
+from hussh import Connection  # type: ignore  # pylint: disable=E0611
 
 from .util import dict_deep_update
 from .whiteprint import (
@@ -52,7 +51,7 @@ class SitePlan:
         self,
         user: str,
         hostname: str,
-        connect_func: Callable[[], Session],
+        connect_func: Callable[[], Connection],
         cfg: Dict[Union[str, Type[Whiteprint]], Dict[str, Any]],
         rsrc_paths: List[Path],
     ):
@@ -102,12 +101,9 @@ class SitePlan:
         See :meth:`__init__` for other args.
         """
 
-        def connect() -> Session:
-            session = SitePlan._create_session(hostname, port)
-            session.userauth_publickey_fromfile(user, private_key, private_key_password)
-            session.set_blocking(False)
-            return session
-
+        def connect() -> Connection:
+            return Connection(
+                host=hostname, port=port, private_key=private_key, password=private_key_password)
         return cls(user, hostname, connect, cfg, rsrc_paths)
 
     @classmethod
@@ -129,21 +125,10 @@ class SitePlan:
         See :meth:`__init__` for other args.
         """
 
-        def connect() -> Session:
-            session = SitePlan._create_session(hostname, port)
-            session.userauth_password(user, password)
-            session.set_blocking(False)
-            return session
-
+        def connect() -> Connection:
+            return Connection(
+                host=hostname, port=port, username=user, password=password)
         return cls(user, hostname, connect, cfg, rsrc_paths)
-
-    @staticmethod
-    def _create_session(hostname: str, port: int) -> Session:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((hostname, port))
-        session = Session()
-        session.handshake(sock)
-        return session
 
     def _resolve_whiteprint_rsrc_path(
         self, whiteprint_cls: Type[Whiteprint]
@@ -156,10 +141,10 @@ class SitePlan:
                 return p
         return None
 
-    def _get_target_host_cfg(self, session: Session) -> Dict[str, Any]:
+    def _get_target_host_cfg(self, conn: Connection) -> Dict[str, Any]:
         if self.target_host_cfg is not None:
             return self.target_host_cfg
-        target_vars_wp = Whiteprint(session)
+        target_vars_wp = Whiteprint(conn)
         r = target_vars_wp.exec(
             "uname -r && "
             "lsb_release -sir && "
